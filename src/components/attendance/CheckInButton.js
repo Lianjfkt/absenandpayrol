@@ -18,52 +18,77 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
     setErrorMessage('')
     setLoading(true)
 
-    if (!navigator.geolocation) {
-      setErrorMessage('Browser Anda tidak mendukung fitur Geolocation/GPS.')
+    // Cek ketersediaan Geolocation API
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setErrorMessage(
+        'Fitur GPS tidak dapat diakses. Browser memerlukan koneksi aman (HTTPS atau localhost) untuk menggunakan GPS.'
+      )
       setLoading(false)
       return
     }
 
+    // Set timeout manual agar UI tidak menggantung jika izin ditahan browser
+    const timer = setTimeout(() => {
+      if (loading) {
+        setErrorMessage('Menunggu izin lokasi GPS dari browser... Pastikan Anda mengizinkan akses lokasi pada popup browser.')
+      }
+    }, 2500)
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        clearTimeout(timer)
         const { latitude, longitude } = pos.coords
 
-        let res
-        if (isCheckOut) {
-          res = await checkOutAction(latitude, longitude)
-        } else {
-          res = await checkInAction(latitude, longitude)
-        }
+        try {
+          let res
+          if (isCheckOut) {
+            res = await checkOutAction(latitude, longitude)
+          } else {
+            res = await checkInAction(latitude, longitude)
+          }
 
-        if (res?.error) {
-          setErrorMessage(res.error)
-        } else {
-          setStatusMessage(
-            isCheckOut
-              ? 'Check-Out Berhasil! Selamat beristirahat.'
-              : `Check-In Berhasil! Status: ${res.status.toUpperCase()} ${
-                  res.menitTelat > 0 ? `(Telat ${res.menitTelat} mnt)` : ''
-                }`
-          )
+          if (res?.error) {
+            setErrorMessage(res.error)
+          } else {
+            setStatusMessage(
+              isCheckOut
+                ? 'Check-Out Berhasil! Selamat beristirahat.'
+                : `Check-In Berhasil! Status: ${res.status?.toUpperCase()} ${
+                    res.menitTelat > 0 ? `(Telat ${res.menitTelat} mnt)` : ''
+                  }`
+            )
+            // Refresh halaman agar status terupdate
+            window.location.reload()
+          }
+        } catch (e) {
+          setErrorMessage(`Terjadi kesalahan server: ${e.message}`)
+        } finally {
+          setLoading(false)
         }
-        setLoading(false)
       },
       (err) => {
+        clearTimeout(timer)
         let msg = 'Gagal mengambil koordinat GPS.'
-        if (err.code === err.PERMISSION_DENIED) {
-          msg = 'Izin lokasi (GPS) ditolak. Harap izinkan akses lokasi pada browser HP Anda.'
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          msg = 'Informasi lokasi tidak tersedia. Pastikan GPS HP aktif.'
-        } else if (err.code === err.TIMEOUT) {
-          msg = 'Waktu permintaan GPS habis. Coba lagi.'
+        if (err.code === 1) {
+          // PERMISSION_DENIED
+          msg =
+            'Izin lokasi (GPS) ditolak. Harap klik ikon gembok / info di samping URL browser dan izinkan "Location / Lokasi".'
+        } else if (err.code === 2) {
+          // POSITION_UNAVAILABLE
+          msg = 'Informasi lokasi tidak tersedia. Pastikan fitur GPS di HP/perangkat Anda aktif.'
+        } else if (err.code === 3) {
+          // TIMEOUT
+          msg = 'Waktu permintaan lokasi GPS habis. Silakan coba klik kembali.'
+        } else {
+          msg = `Error GPS: ${err.message}`
         }
         setErrorMessage(msg)
         setLoading(false)
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: false, // Gunakan false terlebih dahulu agar instan (Wifi/Cellular/GPS)
+        timeout: 15000,
+        maximumAge: 10000,
       }
     )
   }
@@ -123,6 +148,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
         {!isCheckedIn ? (
           <button
+            type="button"
             onClick={() => handleAction(false)}
             disabled={loading}
             className="pulse-animation"
@@ -146,7 +172,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             }}
           >
             <span style={{ fontSize: '2rem' }}>📍</span>
-            <span>{loading ? 'Mengecek...' : 'CHECK IN'}</span>
+            <span>{loading ? 'Mengecek GPS...' : 'CHECK IN'}</span>
           </button>
         ) : !isCheckedOut ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
