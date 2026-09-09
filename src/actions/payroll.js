@@ -56,6 +56,13 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       .eq('periode_bulan', periodeBulan)
       .eq('periode_tahun', periodeTahun)
 
+    // Ambil kasbon aktif
+    const { data: activeLoans } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('employee_id', emp.id)
+      .eq('status', 'aktif')
+
     // Cek apakah ada record payroll draft/adjustment lama
     const { data: existingPayroll } = await supabase
       .from('payroll')
@@ -71,6 +78,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       employee: emp,
       attendances: attendances || [],
       bonuses: bonuses || [],
+      loans: activeLoans || [],
       settings: currentSettings,
       adjustment: adj,
       periodeBulan,

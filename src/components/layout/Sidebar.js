@@ -16,6 +16,10 @@ export function Sidebar({ userRole }) {
         return '👥'
       case 'checklist':
         return '📅'
+      case 'event_busy':
+        return '🏥'
+      case 'account_balance_wallet':
+        return '💳'
       case 'payments':
         return '💰'
       case 'assessment':

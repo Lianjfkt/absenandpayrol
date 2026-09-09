@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { checkInAction, checkOutAction } from '@/actions/attendance'
 import { Button } from '@/components/ui/Button'
 import { formatJam } from '@/lib/constants'
@@ -9,16 +9,70 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [gpsAccuracy, setGpsAccuracy] = useState(null)
+  
+  // State Kamera Selfie
+  const [showCamera, setShowCamera] = useState(false)
+  const [capturedPhoto, setCapturedPhoto] = useState(null)
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
 
   const isCheckedIn = !!todayAttendance?.jam_checkin
   const isCheckedOut = !!todayAttendance?.jam_checkout
 
-  const handleAction = (isCheckOut = false) => {
+  // Buka Kamera Depan
+  const startCamera = async () => {
+    try {
+      setShowCamera(true)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err) {
+      console.warn('Gagal akses kamera:', err)
+      setShowCamera(false)
+      // Tetap lanjutkan tanpa kamera jika device tidak ada / izin ditolak
+      handleLocationAndSubmit(false, null)
+    }
+  }
+
+  // Ambil Foto dari Video Canvas
+  const takeSnapshot = () => {
+    if (!videoRef.current) return
+    const video = videoRef.current
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth || 320
+    canvas.height = video.videoHeight || 320
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const base64 = canvas.toDataURL('image/jpeg', 0.6) // Kompresi foto
+    setCapturedPhoto(base64)
+    stopCamera()
+  }
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    setShowCamera(false)
+  }
+
+  const handleStartCheckIn = () => {
+    setStatusMessage('')
+    setErrorMessage('')
+    startCamera()
+  }
+
+  const handleLocationAndSubmit = (isCheckOut = false, photoData = null) => {
     setStatusMessage('')
     setErrorMessage('')
     setLoading(true)
 
-    // Cek ketersediaan Geolocation API
     if (typeof window === 'undefined' || !navigator.geolocation) {
       setErrorMessage(
         'Fitur GPS tidak dapat diakses. Browser memerlukan koneksi aman (HTTPS atau localhost) untuk menggunakan GPS.'
@@ -27,7 +81,6 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
       return
     }
 
-    // Set timeout manual agar UI tidak menggantung jika izin ditahan browser
     const timer = setTimeout(() => {
       if (loading) {
         setErrorMessage('Menunggu izin lokasi GPS dari browser... Pastikan Anda mengizinkan akses lokasi pada popup browser.')
@@ -37,14 +90,15 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         clearTimeout(timer)
-        const { latitude, longitude } = pos.coords
+        const { latitude, longitude, accuracy } = pos.coords
+        setGpsAccuracy(Math.round(accuracy))
 
         try {
           let res
           if (isCheckOut) {
             res = await checkOutAction(latitude, longitude)
           } else {
-            res = await checkInAction(latitude, longitude)
+            res = await checkInAction(latitude, longitude, photoData, Math.round(accuracy))
           }
 
           if (res?.error) {
@@ -57,7 +111,6 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
                     res.menitTelat > 0 ? `(Telat ${res.menitTelat} mnt)` : ''
                   }`
             )
-            // Refresh halaman agar status terupdate
             window.location.reload()
           }
         } catch (e) {
@@ -70,14 +123,10 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
         clearTimeout(timer)
         let msg = 'Gagal mengambil koordinat GPS.'
         if (err.code === 1) {
-          // PERMISSION_DENIED
-          msg =
-            'Izin lokasi (GPS) ditolak. Harap klik ikon gembok / info di samping URL browser dan izinkan "Location / Lokasi".'
+          msg = 'Izin lokasi (GPS) ditolak. Harap klik ikon gembok / info di samping URL browser dan izinkan "Location / Lokasi".'
         } else if (err.code === 2) {
-          // POSITION_UNAVAILABLE
           msg = 'Informasi lokasi tidak tersedia. Pastikan fitur GPS di HP/perangkat Anda aktif.'
         } else if (err.code === 3) {
-          // TIMEOUT
           msg = 'Waktu permintaan lokasi GPS habis. Silakan coba klik kembali.'
         } else {
           msg = `Error GPS: ${err.message}`
@@ -86,9 +135,9 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
         setLoading(false)
       },
       {
-        enableHighAccuracy: false, // Gunakan false terlebih dahulu agar instan (Wifi/Cellular/GPS)
+        enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 10000,
+        maximumAge: 5000,
       }
     )
   }
@@ -108,6 +157,14 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
           }}
         >
           🎉 Hari ini adalah Hari Libur Mingguan Anda. Jika Anda masuk kerja hari ini, Anda akan mendapatkan bonus Rp 50.000!
+        </div>
+      )}
+
+      {/* Indikator Akurasi GPS */}
+      {gpsAccuracy !== null && (
+        <div style={{ fontSize: '0.8rem', color: gpsAccuracy <= 20 ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>🛰️ Akurasi GPS: ±{gpsAccuracy} meter</span>
+          {gpsAccuracy <= 20 ? ' (Sinyal Baik)' : ' (Sinyal Sedang)'}
         </div>
       )}
 
@@ -145,74 +202,176 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-        {!isCheckedIn ? (
-          <button
-            type="button"
-            onClick={() => handleAction(false)}
-            disabled={loading}
-            className="pulse-animation"
+      {/* Modal/Preview Kamera Selfie */}
+      {showCamera && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '1rem',
+            background: 'var(--bg-surface-elevated)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border)',
+            width: '100%',
+            maxWidth: '320px',
+          }}
+        >
+          <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>📸 Ambil Foto Selfie Kehadiran</div>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
             style={{
-              width: '160px',
-              height: '160px',
-              borderRadius: '50%',
-              background: 'var(--primary-gradient)',
-              color: '#ffffff',
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4rem',
-              fontWeight: 700,
-              fontSize: '1.2rem',
-              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
-              transition: 'transform 0.2s ease',
+              width: '100%',
+              height: '240px',
+              objectFit: 'cover',
+              borderRadius: 'var(--radius-md)',
+              background: '#000',
             }}
-          >
-            <span style={{ fontSize: '2rem' }}>📍</span>
-            <span>{loading ? 'Mengecek GPS...' : 'CHECK IN'}</span>
-          </button>
-        ) : !isCheckedOut ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Sudah Check-In pada:</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--success)' }}>
-                {formatJam(todayAttendance.jam_checkin)}
-              </div>
-            </div>
-
+          />
+          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
             <Button
-              variant="danger"
-              size="lg"
-              loading={loading}
-              onClick={() => handleAction(true)}
-              style={{ width: '200px' }}
+              variant="outline"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={() => {
+                stopCamera()
+                handleLocationAndSubmit(false, null)
+              }}
             >
-              🛑 CHECK OUT
+              Lewati Foto
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={() => {
+                takeSnapshot()
+              }}
+            >
+              Ambil Foto
             </Button>
           </div>
-        ) : (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '1.5rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <span style={{ fontSize: '2rem' }}>✅</span>
-            <div style={{ fontWeight: 600, fontSize: '1.1rem', marginTop: '0.5rem' }}>
-              Absensi Hari Ini Lengkap
-            </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              In: {formatJam(todayAttendance.jam_checkin)} | Out: {formatJam(todayAttendance.jam_checkout)}
-            </div>
+        </div>
+      )}
+
+      {/* Preview Foto yang sudah diambil sebelum submit */}
+      {capturedPhoto && !showCamera && !isCheckedIn && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '1rem',
+            background: 'var(--bg-surface-elevated)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Foto Siap Dikirim:</div>
+          <img
+            src={capturedPhoto}
+            alt="Selfie Checkin"
+            style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '50%', border: '2px solid var(--primary)' }}
+          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCapturedPhoto(null)
+                startCamera()
+              }}
+            >
+              Ulang Foto
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={loading}
+              onClick={() => handleLocationAndSubmit(false, capturedPhoto)}
+            >
+              Kirim Check-In
+            </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Tombol Check In / Check Out Utama */}
+      {!showCamera && !capturedPhoto && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          {!isCheckedIn ? (
+            <button
+              type="button"
+              onClick={handleStartCheckIn}
+              disabled={loading}
+              className="pulse-animation"
+              style={{
+                width: '160px',
+                height: '160px',
+                borderRadius: '50%',
+                background: 'var(--primary-gradient)',
+                color: '#ffffff',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                fontWeight: 700,
+                fontSize: '1.2rem',
+                boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
+                transition: 'transform 0.2s ease',
+              }}
+            >
+              <span style={{ fontSize: '2rem' }}>📍</span>
+              <span>{loading ? 'Mengecek GPS...' : 'CHECK IN'}</span>
+            </button>
+          ) : !isCheckedOut ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Sudah Check-In pada:</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--success)' }}>
+                  {formatJam(todayAttendance.jam_checkin)}
+                </div>
+              </div>
+
+              <Button
+                variant="danger"
+                size="lg"
+                loading={loading}
+                onClick={() => handleLocationAndSubmit(true, null)}
+                style={{ width: '200px' }}
+              >
+                🛑 CHECK OUT
+              </Button>
+            </div>
+          ) : (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <span style={{ fontSize: '2rem' }}>✅</span>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', marginTop: '0.5rem' }}>
+                Absensi Hari Ini Lengkap
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                In: {formatJam(todayAttendance.jam_checkin)} | Out: {formatJam(todayAttendance.jam_checkout)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -12,6 +12,25 @@ export const ATTENDANCE_STATUS = {
   OFF: 'off',
 }
 
+// === Leave Types & Status ===
+export const LEAVE_TYPES = {
+  SAKIT: 'sakit',
+  IZIN: 'izin',
+  CUTI: 'cuti',
+}
+
+export const LEAVE_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+}
+
+// === Loan Status ===
+export const LOAN_STATUS = {
+  AKTIF: 'aktif',
+  LUNAS: 'lunas',
+}
+
 // === Payroll Status ===
 export const PAYROLL_STATUS = {
   DRAFT: 'draft',
@@ -54,6 +73,8 @@ export const OWNER_MENU = [
   { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
   { label: 'Karyawan', href: '/karyawan', icon: 'people' },
   { label: 'Absensi', href: '/absensi', icon: 'checklist' },
+  { label: 'Izin & Sakit', href: '/izin', icon: 'event_busy' },
+  { label: 'Kasbon', href: '/kasbon', icon: 'account_balance_wallet' },
   { label: 'Payroll', href: '/payroll', icon: 'payments' },
   { label: 'Rekap', href: '/rekap', icon: 'assessment' },
   { label: 'Pengaturan', href: '/pengaturan', icon: 'settings' },
@@ -62,6 +83,7 @@ export const OWNER_MENU = [
 export const KARYAWAN_MENU = [
   { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
   { label: 'Absensi', href: '/absensi', icon: 'checklist' },
+  { label: 'Izin & Sakit', href: '/izin', icon: 'event_busy' },
   { label: 'Slip Gaji', href: '/slip-gaji', icon: 'receipt' },
 ]
 
@@ -72,11 +94,12 @@ export function formatRupiah(amount) {
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(amount || 0)
 }
 
 // === Format date ===
 export function formatTanggal(dateStr) {
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
@@ -86,8 +109,49 @@ export function formatTanggal(dateStr) {
 
 // === Format time ===
 export function formatJam(dateStr) {
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleTimeString('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+// === WhatsApp Slip Text Generator ===
+export function generateWhatsAppSlipText(namaKaryawan, slip) {
+  const lines = [
+    `*SLIP GAJI KARYAWAN - TAICHAN & CHICKEN KA*`,
+    `Periode: Bulan ${slip.periode_bulan}/${slip.periode_tahun}`,
+    `Nama: ${namaKaryawan}`,
+    `----------------------------------------`,
+    `• Gaji Pokok: ${formatRupiah(slip.gaji_pokok)}`,
+  ]
+
+  if (slip.total_potongan_telat > 0) {
+    lines.push(`• Potongan Telat (${slip.total_hari_telat} hr): -${formatRupiah(slip.total_potongan_telat)}`)
+  }
+  if (slip.total_potongan_off > 0) {
+    lines.push(`• Potongan Off/Alpa (${slip.total_hari_off} hr): -${formatRupiah(slip.total_potongan_off)}`)
+  }
+  if (slip.total_potongan_kasbon > 0) {
+    lines.push(`• Potongan Kasbon: -${formatRupiah(slip.total_potongan_kasbon)}`)
+  }
+  if (slip.total_bonus_libur > 0) {
+    lines.push(`• Bonus Masuk Libur (${slip.total_hari_libur_masuk} hr): +${formatRupiah(slip.total_bonus_libur)}`)
+  }
+  if (slip.total_bonus_manual > 0) {
+    lines.push(`• Bonus Tambahan: +${formatRupiah(slip.total_bonus_manual)}`)
+  }
+  if (slip.adjustment !== 0) {
+    lines.push(`• Penyesuaian (${slip.keterangan_adjustment || '-'}): ${slip.adjustment > 0 ? '+' : ''}${formatRupiah(slip.adjustment)}`)
+  }
+
+  lines.push(`----------------------------------------`)
+  lines.push(`*TOTAL GAJI DITERIMA: ${formatRupiah(slip.total_gaji)}*`)
+  lines.push(`Status: ${slip.status_pembayaran === 'sudah_dibayar' ? 'LUNAS / SUDAH DIBAYAR' : 'DRAFT / BELUM DIBAYAR'}`)
+  if (slip.tanggal_dibayar) {
+    lines.push(`Tanggal Dibayar: ${formatTanggal(slip.tanggal_dibayar)}`)
+  }
+  lines.push(`\n_Terima kasih atas kerja keras dan dedikasinya!_`)
+
+  return encodeURIComponent(lines.join('\n'))
 }

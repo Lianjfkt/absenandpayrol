@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
+import { RekapExportControls } from '@/components/rekap/RekapExportControls'
 
 export default async function RekapLaporanPage({ searchParams }) {
   const params = await searchParams
@@ -18,7 +19,7 @@ export default async function RekapLaporanPage({ searchParams }) {
     .eq('periode_tahun', currentYear)
 
   const totalPengeluaran = payrolls?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
-  const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off), 0) || 0
+  const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off + (p.total_potongan_kasbon || 0)), 0) || 0
   const totalBonus = payrolls?.reduce((acc, p) => acc + (p.total_bonus_libur + p.total_bonus_manual), 0) || 0
 
   return (
@@ -30,6 +31,13 @@ export default async function RekapLaporanPage({ searchParams }) {
         </p>
       </div>
 
+      {/* Kontrol Export & Filter Periode */}
+      <RekapExportControls
+        payrolls={payrolls || []}
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+      />
+
       {/* Ringkasan Finansial */}
       <div className="grid grid-cols-1 grid-cols-3" style={{ gap: '1rem' }}>
         <Card>
@@ -40,7 +48,7 @@ export default async function RekapLaporanPage({ searchParams }) {
         </Card>
 
         <Card>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Potongan (Telat/Off)</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Potongan (Telat/Off/Kasbon)</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)', marginTop: '0.25rem' }}>
             -{formatRupiah(totalPotongan)}
           </div>

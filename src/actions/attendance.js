@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 /**
  * Server action untuk Check-In absensi karyawan
  */
-export async function checkInAction(latitude, longitude) {
+export async function checkInAction(latitude, longitude, fotoCheckin = null, accuracyMeter = null) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -56,6 +56,8 @@ export async function checkInAction(latitude, longitude) {
     jam_checkin: now.toISOString(),
     latitude_checkin: latitude,
     longitude_checkin: longitude,
+    foto_checkin: fotoCheckin,
+    accuracy_meter: accuracyMeter,
     status,
     menit_telat: menitTelat,
     potongan_telat: potonganTelat,

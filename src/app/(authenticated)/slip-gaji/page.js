@@ -2,11 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatRupiah } from '@/lib/constants'
+import { SlipActions } from '@/components/payroll/SlipActions'
 
 export default async function SlipGajiKaryawanPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('nama')
+    .eq('id', user.id)
+    .single()
 
   // Ambil data payroll milik karyawan yang sedang login
   const { data: slipList } = await supabase
@@ -68,6 +75,15 @@ export default async function SlipGajiKaryawanPage() {
                 </div>
               )}
 
+              {slip.total_potongan_kasbon > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Potongan Kasbon / Cicilan Pinjaman
+                  </span>
+                  <span style={{ color: 'var(--danger)' }}>-{formatRupiah(slip.total_potongan_kasbon)}</span>
+                </div>
+              )}
+
               {slip.total_bonus_libur > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>
@@ -107,6 +123,9 @@ export default async function SlipGajiKaryawanPage() {
                 <span style={{ color: 'var(--primary-light)' }}>{formatRupiah(slip.total_gaji)}</span>
               </div>
             </div>
+
+            {/* Aksi Cetak & WA Share */}
+            <SlipActions slip={slip} namaKaryawan={profile?.nama || 'Karyawan'} />
           </Card>
         ))
       )}

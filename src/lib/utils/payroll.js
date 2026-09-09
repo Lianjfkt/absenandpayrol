@@ -9,6 +9,7 @@ export function kalkulasiPayrollKaryawan({
   employee,
   attendances = [],
   bonuses = [],
+  loans = [],
   settings = DEFAULT_SETTINGS,
   adjustment = 0,
   periodeBulan,
@@ -47,7 +48,13 @@ export function kalkulasiPayrollKaryawan({
   const totalBonusLibur = totalHariLiburMasuk * bonusMasukLiburRate
   const totalBonusManual = bonuses.reduce((acc, b) => acc + Number(b.nominal || 0), 0)
 
-  const totalPotongan = totalPotonganTelat + totalPotonganOff
+  // Hitung cicilan kasbon aktif
+  const totalPotonganKasbon = loans.reduce((acc, l) => {
+    const cicilan = Math.min(Number(l.sisa_pinjaman || 0), Number(l.cicilan_per_bulan || 0))
+    return acc + cicilan
+  }, 0)
+
+  const totalPotongan = totalPotonganTelat + totalPotonganOff + totalPotonganKasbon
   const totalBonus = totalBonusLibur + totalBonusManual
 
   // 3. Formula final
@@ -65,6 +72,7 @@ export function kalkulasiPayrollKaryawan({
     total_hari_libur_masuk: totalHariLiburMasuk,
     total_potongan_telat: totalPotonganTelat,
     total_potongan_off: totalPotonganOff,
+    total_potongan_kasbon: totalPotonganKasbon,
     total_bonus_libur: totalBonusLibur,
     total_bonus_manual: totalBonusManual,
     adjustment: Number(adjustment || 0),
