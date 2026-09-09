@@ -1,40 +1,19 @@
-'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createEmployeeAction } from '@/actions/employees'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
+import Link from 'next/link'
 import { HARI } from '@/lib/constants'
 
-export default function TambahKaryawanPage() {
-  const router = useRouter()
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+export default async function TambahKaryawanPage({ searchParams }) {
+  const params = await searchParams
+  const errorMsg = params?.error
 
   const opsiHariLibur = HARI.map((hari, index) => ({
     value: index.toString(),
     label: `Hari ${hari}`,
   }))
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const formData = new FormData(e.currentTarget)
-    const res = await createEmployeeAction(formData)
-
-    if (res?.error) {
-      setError(res.error)
-      setLoading(false)
-    } else {
-      router.push('/karyawan')
-    }
-  }
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -46,8 +25,8 @@ export default function TambahKaryawanPage() {
       </div>
 
       <Card variant="default">
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {error && (
+        <form action={createEmployeeAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {errorMsg && (
             <div
               style={{
                 padding: '0.75rem',
@@ -58,7 +37,7 @@ export default function TambahKaryawanPage() {
                 fontSize: '0.875rem',
               }}
             >
-              {error}
+              {decodeURIComponent(errorMsg)}
             </div>
           )}
 
@@ -128,7 +107,7 @@ export default function TambahKaryawanPage() {
             <Link href="/karyawan">
               <Button variant="outline" type="button">Batal</Button>
             </Link>
-            <Button variant="primary" type="submit" loading={loading}>
+            <Button variant="primary" type="submit">
               Simpan Data Karyawan
             </Button>
           </div>
