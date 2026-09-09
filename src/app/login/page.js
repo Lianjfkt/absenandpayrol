@@ -19,24 +19,33 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
+      console.log('Mengirim login ke Supabase Auth...')
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (authError) {
+        console.error('Supabase Auth error:', authError)
         setError(`Gagal masuk: ${authError.message}`)
         setLoading(false)
         return
       }
 
+      console.log('Login berhasil! Data user:', data)
+
       if (data?.user) {
         // Cek profil status aktif
-        const { data: profile } = await supabase
+        const { data: profile, error: profileErr } = await supabase
           .from('profiles')
-          .select('status_aktif')
+          .select('status_aktif, role')
           .eq('id', data.user.id)
           .single()
+
+        if (profileErr) {
+          console.error('Profile fetch warning:', profileErr)
+        }
 
         if (profile && profile.status_aktif === false) {
           await supabase.auth.signOut()
@@ -45,10 +54,14 @@ export default function LoginPage() {
           return
         }
 
-        // Redirect langsung via window.location agar cookie & state halaman ter-refresh penuh
-        window.location.href = '/dashboard'
+        console.log('Berhasil verifikasi profile. Mengarahkan ke /dashboard...')
+        window.location.replace('/dashboard')
+      } else {
+        setError('Gagal mendapatkan sesi pengguna.')
+        setLoading(false)
       }
     } catch (err) {
+      console.error('Exception during login:', err)
       setError(`Terjadi kesalahan: ${err.message}`)
       setLoading(false)
     }
