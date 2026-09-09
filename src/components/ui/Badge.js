@@ -2,57 +2,60 @@ import React from 'react'
 
 export function Badge({
   children,
-  variant = 'default', // success, warning, danger, info, default
+  variant = 'default', // success, warning, danger, info, accent, default
   size = 'md',
-  style = {}
+  style = {},
+  className = ''
 }) {
   const baseStyle = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.35rem',
-    borderRadius: 'var(--radius-full)',
+    borderRadius: 'var(--radius-pill)',
     fontWeight: 600,
-    textTransform: 'capitalize',
+    letterSpacing: '-0.01em',
   }
 
   const sizes = {
-    sm: { padding: '0.2rem 0.6rem', fontSize: '0.75rem' },
-    md: { padding: '0.3rem 0.75rem', fontSize: '0.85rem' },
+    sm: { padding: '0.2rem 0.65rem', fontSize: '0.75rem' },
+    md: { padding: '0.35rem 0.85rem', fontSize: '0.825rem' },
+    lg: { padding: '0.45rem 1rem', fontSize: '0.9rem' },
   }
 
   const variants = {
     default: {
-      background: 'var(--bg-surface-elevated)',
-      color: 'var(--text-muted)',
+      background: 'var(--surface-muted)',
+      color: 'var(--ink-muted)',
+    },
+    accent: {
+      background: 'var(--accent-soft)',
+      color: 'var(--accent)',
     },
     success: {
-      background: 'var(--success-bg)',
-      color: 'var(--success)',
-      border: '1px solid rgba(16, 185, 129, 0.3)',
+      background: '#DCFCE7',
+      color: '#15803D',
     },
     warning: {
-      background: 'var(--warning-bg)',
-      color: 'var(--warning)',
-      border: '1px solid rgba(245, 158, 11, 0.3)',
+      background: 'var(--accent-soft)',
+      color: 'var(--accent)',
     },
     danger: {
-      background: 'var(--danger-bg)',
-      color: 'var(--danger)',
-      border: '1px solid rgba(239, 68, 68, 0.3)',
+      background: '#FEE2E2',
+      color: '#B91C1C',
     },
     info: {
-      background: 'var(--info-bg)',
-      color: 'var(--info)',
-      border: '1px solid rgba(59, 130, 246, 0.3)',
+      background: '#E0F2FE',
+      color: '#0369A1',
     },
   }
 
   return (
     <span
+      className={className}
       style={{
         ...baseStyle,
         ...sizes[size],
-        ...variants[variant],
+        ...variants[variant] || variants.default,
         ...style,
       }}
     >

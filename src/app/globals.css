@@ -1,73 +1,100 @@
-/* Design System Tokens & Modern Theme */
+/* ============================================================
+   DESIGN SYSTEM — Absensi & Payroll Kedai
+   Mood: Warm consumer-app premium, bukan dark corporate HR
+   Referensi: design-system-absensi-payroll.md
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  
-  /* Primary & Accent (Modern Emerald & Indigo) */
-  --primary: #059669;
-  --primary-hover: #047857;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* === Color Tokens === */
+  --bg-main: #F0EDE7;           /* Warm off-white background */
+  --bg-surface: #FFFFFF;        /* Card & nav surface */
+  --bg-surface-muted: #F5F2EC; /* Input, secondary areas */
+  --bg-glass: rgba(255,255,255,0.8);
+
+  --accent: #F97316;            /* Orange — button, progress, highlight */
+  --accent-hover: #EA6C0A;
+  --accent-soft: #FDE8D2;       /* Light tint for badge BG */
+  --accent-gradient: linear-gradient(135deg, #F97316 0%, #EA6C0A 100%);
+
+  /* Keep emerald for payroll/gaji context (income = growth) */
+  --primary: #10b981;
   --primary-light: #d1fae5;
-  --primary-dark: #064e3b;
   --primary-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  
-  --accent: #6366f1;
-  --accent-light: #e0e7ff;
-  
-  /* Neutrals & Surfaces (Rich Dark / Glassmorphism) */
-  --bg-main: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-surface-elevated: #334155;
-  --bg-glass: rgba(30, 41, 59, 0.7);
-  
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  
-  --border: #334155;
-  --border-light: rgba(255, 255, 255, 0.1);
-  
-  /* Status Colors */
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --info: #3b82f6;
-  --info-bg: rgba(59, 130, 246, 0.15);
-  
-  /* Shadows & Glows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
-  --shadow-glow: 0 0 25px rgba(16, 185, 129, 0.25);
-  
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+
+  --ink: #171717;               /* Primary text */
+  --ink-muted: #8B8B93;         /* Muted text, captions */
+  --ink-dim: #B0ACAB;           /* Very faint labels */
+
+  --border: #E8E4DB;            /* Subtle borders */
+  --border-strong: #D5CFC5;
+
+  /* Status Colors — warm tints for light background */
+  --success: #16a34a;
+  --success-bg: #DCFCE7;
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --danger: #DC2626;
+  --danger-bg: #FEE2E2;
+  --info: #2563EB;
+  --info-bg: #DBEAFE;
+
+  /* Selected / dark pill (filter category) */
+  --selected-dark: #171717;
+
+  /* === Shadows (soft, light) === */
+  --shadow-soft: 0 8px 24px rgba(20, 20, 20, 0.06);
+  --shadow-card: 0 2px 8px rgba(20, 20, 20, 0.05);
+  --shadow-nav: 0 12px 30px rgba(20, 20, 20, 0.10);
+  --shadow-btn: 0 4px 16px rgba(249, 115, 22, 0.30);
+
+  /* === Radii === */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-card: 24px;
+  --radius-input: 20px;
   --radius-full: 9999px;
-  
-  /* Layout */
-  --header-height: 64px;
-  --bottom-nav-height: 68px;
+
+  /* Legacy aliases for compatibility with existing component refs */
+  --radius-lg: 24px;
+  --shadow-sm: 0 1px 3px rgba(20,20,20,0.07);
+  --shadow-md: var(--shadow-soft);
+  --shadow-lg: 0 16px 32px rgba(20, 20, 20, 0.10);
+
+  /* === Layout === */
+  --header-height: 72px;
+  --bottom-nav-height: 80px;
   --sidebar-width: 260px;
+
+  /* Legacy dark-mode compat shims (for components not yet refactored) */
+  --bg-surface-elevated: #F5F2EC;
+  --text-main: #171717;
+  --text-muted: #8B8B93;
+  --text-dim: #B0ACAB;
+  --border-light: #E8E4DB;
+  --shadow-glow: 0 0 20px rgba(249, 115, 22, 0.20);
 }
 
-* {
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
 }
 
-html,
-body {
+html, body {
   max-width: 100vw;
   overflow-x: hidden;
   font-family: var(--font-sans);
   background-color: var(--bg-main);
-  color: var(--text-main);
+  color: var(--ink);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -79,98 +106,145 @@ button, input, select, textarea {
   font-family: inherit;
 }
 
-/* Glassmorphism utility */
-.glass-panel {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-light);
+input, select, textarea {
+  background: var(--bg-surface-muted);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-input);
+  color: var(--ink);
+  transition: border-color 0.15s ease;
 }
 
-/* Layout Utilities */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   LAYOUT UTILITIES
+   ============================================================ */
 .container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 480px;   /* Mobile-first max width for app content */
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 20px;
 }
 
-.flex {
-  display: flex;
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-5 { gap: 20px; }
+.gap-6 { gap: 24px; }
+
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+
+@media (min-width: 640px) {
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.gap-1 { gap: 0.25rem; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.gap-4 { gap: 1rem; }
-.gap-6 { gap: 1.5rem; }
-
-.grid {
-  display: grid;
-}
-
-.grid-cols-1 {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-}
-
 @media (min-width: 768px) {
-  .grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .grid-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .grid-cols-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-/* Micro-animations */
-@keyframes pulseGlow {
+/* ============================================================
+   SCROLLABLE FILTER PILLS (horizontal)
+   ============================================================ */
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.filter-pills::-webkit-scrollbar { display: none; }
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--ink);
+  transition: all 0.15s ease;
+}
+.filter-pill.active {
+  background: var(--selected-dark);
+  color: #FFFFFF;
+  border-color: var(--selected-dark);
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress-track {
+  height: 6px;
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+/* ============================================================
+   MICRO ANIMATIONS
+   ============================================================ */
+@keyframes pulseOrange {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.35);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.45);
-    transform: scale(1.02);
+    box-shadow: 0 0 0 12px rgba(249, 115, 22, 0);
+    transform: scale(1.03);
   }
 }
 
 .pulse-animation {
-  animation: pulseGlow 3s infinite ease-in-out;
+  animation: pulseOrange 2.5s infinite ease-in-out;
 }
 
-/* Responsive display classes */
-.desktop-only {
-  display: flex !important;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.mobile-only {
-  display: none !important;
+
+.fade-up {
+  animation: fadeUp 0.35s ease forwards;
 }
+
+/* ============================================================
+   RESPONSIVE: DESKTOP SIDEBAR / MOBILE BOTTOM NAV
+   ============================================================ */
+.desktop-only { display: flex !important; }
+.mobile-only  { display: none !important; }
 
 @media (max-width: 768px) {
-  .desktop-only {
-    display: none !important;
-  }
-  .mobile-only {
-    display: flex !important;
-  }
+  .desktop-only { display: none !important; }
+  .mobile-only  { display: flex !important; }
+}
+
+/* ============================================================
+   PRINT STYLES — Slip Gaji / Rekap
+   ============================================================ */
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
 }

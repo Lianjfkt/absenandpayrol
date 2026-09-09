@@ -21,6 +21,9 @@ export default async function DashboardPage() {
   const todayDay = new Date().getDay()
   const isHariLibur = todayDay === profile?.hari_libur
 
+  // Monthly stats calculation (current month)
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+
   // Data untuk Karyawan
   const { data: todayAttendance } = user
     ? await supabase
@@ -30,6 +33,18 @@ export default async function DashboardPage() {
         .eq('tanggal', todayStr)
         .maybeSingle()
     : { data: null }
+
+  const { data: monthlyAttendance } = user && !isOwner
+    ? await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user.id)
+        .gte('tanggal', currentMonthStart)
+    : { data: [] }
+
+  const hadirDays = monthlyAttendance?.filter(a => a.status === 'hadir' || a.status === 'telat').length || 0
+  const targetDays = 26
+  const attendancePercentage = Math.min(100, Math.round((hadirDays / targetDays) * 100))
 
   // Data untuk Owner
   const { data: allEmployees } = await supabase
@@ -43,23 +58,23 @@ export default async function DashboardPage() {
     .eq('tanggal', todayStr)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Header Welcome */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      {/* Header Display */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-            Selamat Datang, {profile?.nama || 'Pengguna'}! 👋
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', margin: 0 }}>
+            Selamat Pagi, {profile?.nama || 'Pengguna'} 👋
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--ink-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
             {isOwner
-              ? 'Ringkasan operasional dan kehadiran staf kedai hari ini.'
-              : 'Dashboard absensi dan performa kehadiran Anda.'}
+              ? 'Ringkasan aktivitas operasional & tim kedai hari ini'
+              : 'Pantau kehadiran, jadwal shift & perkiraan gaji Anda'}
           </p>
         </div>
 
         {!isOwner && (
-          <Badge variant={isHariLibur ? 'info' : 'success'}>
-            {isHariLibur ? 'Hari Libur Anda' : 'Hari Kerja'}
+          <Badge variant={isHariLibur ? 'warning' : 'accent'} size="lg">
+            {isHariLibur ? 'Jadwal Libur' : 'Hari Kerja'}
           </Badge>
         )}
       </div>
@@ -67,69 +82,109 @@ export default async function DashboardPage() {
       {/* DASHBOARD KARYAWAN */}
       {!isOwner && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <Card variant="glass" style={{ padding: '2rem 1rem', display: 'flex', justifyContent: 'center' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <Link href="/absensi" style={{ flex: '1 1 180px' }}>
+              <Button variant="primary" size="lg" style={{ width: '100%' }}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                Absen Sekarang
+              </Button>
+            </Link>
+            <Link href="/absensi" style={{ flex: '1 1 180px' }}>
+              <Button variant="secondary" size="lg" style={{ width: '100%' }}>
+                Riwayat Saya
+              </Button>
+            </Link>
+          </div>
+
+          {/* Card Checkin Quick Action */}
+          <Card style={{ padding: '1.75rem 1.25rem', textAlign: 'center' }}>
             <CheckInButton todayAttendance={todayAttendance} isHariLibur={isHariLibur} />
           </Card>
 
-          <div className="grid grid-cols-1 grid-cols-2" style={{ gap: '1rem' }}>
-            <Card>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Gaji Pokok Anda</h3>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary-light)' }}>
-                {formatRupiah(profile?.gaji_pokok || 0)}
+          {/* Progress Card Kehadiran Bulan Ini */}
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+                  Kehadiran Bulan Ini
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>Target 26 hari kerja</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Per bulan (sebelum bonus & potongan)
-              </div>
-            </Card>
+              <Badge variant="accent" size="lg">
+                {attendancePercentage}% Hadir
+              </Badge>
+            </div>
 
-            <Card>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Akses Cepat</h3>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                <Link href="/absensi">
-                  <Button variant="secondary" size="sm">📅 Riwayat Absensi</Button>
-                </Link>
-                <Link href="/slip-gaji">
-                  <Button variant="secondary" size="sm">🧾 Lihat Slip Gaji</Button>
-                </Link>
-              </div>
-            </Card>
-          </div>
+            {/* Progress Bar */}
+            <div style={{
+              width: '100%',
+              height: '10px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--surface-muted)',
+              overflow: 'hidden',
+              marginBottom: '1rem',
+            }}>
+              <div style={{
+                width: `${attendancePercentage}%`,
+                height: '100%',
+                background: 'var(--accent)',
+                borderRadius: 'var(--radius-pill)',
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+
+            <div style={{
+              display: 'flex',
+              justify: 'space-between',
+              alignItems: 'center',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid var(--border)',
+            }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>Gaji Pokok Berjalan</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)' }}>
+                {formatRupiah(profile?.gaji_pokok || 0)}
+              </span>
+            </div>
+          </Card>
         </div>
       )}
 
       {/* DASHBOARD OWNER */}
       {isOwner && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Quick Metrics */}
-          <div className="grid grid-cols-1 grid-cols-3" style={{ gap: '1rem' }}>
-            <Card>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Total Staf Aktif</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '0.25rem' }}>
-                {allEmployees?.filter((e) => e.status_aktif).length || 0} Orang
+          {/* Quick Metrics Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+            <Card variant="accent-soft">
+              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Total Staf</div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--ink)', marginTop: '0.25rem' }}>
+                {allEmployees?.filter((e) => e.status_aktif).length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>orang</span>
               </div>
             </Card>
 
             <Card>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Hadir Hari Ini</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--success)', marginTop: '0.25rem' }}>
-                {todayAllAttendance?.filter((a) => a.status === 'hadir').length || 0} Orang
+              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Hadir Hari Ini</div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16A34A', marginTop: '0.25rem' }}>
+                {todayAllAttendance?.filter((a) => a.status === 'hadir').length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink-muted)' }}>tim</span>
               </div>
             </Card>
 
             <Card>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Telat Hari Ini</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--warning)', marginTop: '0.25rem' }}>
-                {todayAllAttendance?.filter((a) => a.status === 'telat').length || 0} Orang
+              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Telat Hari Ini</div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent)', marginTop: '0.25rem' }}>
+                {todayAllAttendance?.filter((a) => a.status === 'telat').length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink-muted)' }}>orang</span>
               </div>
             </Card>
           </div>
 
-          {/* Status Kehadiran Karyawan Hari Ini */}
+          {/* List Kehadiran Staf */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Kehadiran Hari Ini ({todayStr})</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+                Status Presensi Hari Ini
+              </h2>
               <Link href="/absensi">
-                <Button variant="outline" size="sm">Semua Absensi</Button>
+                <Button variant="outline" size="sm">Lihat Semua</Button>
               </Link>
             </div>
 
@@ -137,13 +192,29 @@ export default async function DashboardPage() {
               {allEmployees?.map((emp) => {
                 const att = todayAllAttendance?.find((a) => a.employee_id === emp.id)
                 return (
-                  <Card key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{emp.nama}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        {att
-                          ? `In: ${formatJam(att.jam_checkin)} ${att.jam_checkout ? `| Out: ${formatJam(att.jam_checkout)}` : ''}`
-                          : 'Belum Melakukan Absen'}
+                  <Card key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: 'var(--surface-muted)',
+                        color: 'var(--ink)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.9rem'
+                      }}>
+                        {emp.nama ? emp.nama.charAt(0).toUpperCase() : 'K'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: '0.95rem' }}>{emp.nama}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                          {att
+                            ? `Masuk: ${formatJam(att.jam_checkin)} ${att.jam_checkout ? `| Pulang: ${formatJam(att.jam_checkout)}` : ''}`
+                            : 'Belum presensi hari ini'}
+                        </div>
                       </div>
                     </div>
 
