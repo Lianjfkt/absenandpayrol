@@ -12,40 +12,35 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function handleLogin() {
+    if (!email || !password) {
+      setError('Email dan kata sandi harus diisi.')
+      return
+    }
+
     setError('')
     setLoading(true)
 
     try {
       const supabase = createClient()
-      console.log('Mengirim login ke Supabase Auth...')
-
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (authError) {
-        console.error('Supabase Auth error:', authError)
         setError(`Gagal masuk: ${authError.message}`)
         setLoading(false)
         return
       }
 
-      console.log('Login berhasil! Data user:', data)
-
       if (data?.user) {
         // Cek profil status aktif
-        const { data: profile, error: profileErr } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
-          .select('status_aktif, role')
+          .select('status_aktif')
           .eq('id', data.user.id)
           .single()
-
-        if (profileErr) {
-          console.error('Profile fetch warning:', profileErr)
-        }
 
         if (profile && profile.status_aktif === false) {
           await supabase.auth.signOut()
@@ -54,14 +49,13 @@ export default function LoginPage() {
           return
         }
 
-        console.log('Berhasil verifikasi profile. Mengarahkan ke /dashboard...')
-        window.location.replace('/dashboard')
+        // Hard redirect ke /dashboard
+        window.location.href = '/dashboard'
       } else {
-        setError('Gagal mendapatkan sesi pengguna.')
+        setError('Gagal mendapatkan sesi login.')
         setLoading(false)
       }
     } catch (err) {
-      console.error('Exception during login:', err)
       setError(`Terjadi kesalahan: ${err.message}`)
       setLoading(false)
     }
@@ -105,7 +99,7 @@ export default function LoginPage() {
         </div>
 
         <Card variant="glass">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
               Masuk ke Sistem
             </h2>
@@ -134,6 +128,9 @@ export default function LoginPage() {
               placeholder="nama@kedai.com"
               required
               autoComplete="email"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleLogin()
+              }}
             />
 
             <Input
@@ -145,18 +142,22 @@ export default function LoginPage() {
               placeholder="••••••••"
               required
               autoComplete="current-password"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleLogin()
+              }}
             />
 
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="lg"
               loading={loading}
+              onClick={handleLogin}
               style={{ width: '100%', marginTop: '0.5rem' }}
             >
               {loading ? 'Memproses Masuk...' : 'Masuk Sekarang'}
             </Button>
-          </form>
+          </div>
         </Card>
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
