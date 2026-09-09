@@ -19,22 +19,26 @@ export async function loginAction(formData) {
   })
 
   if (error) {
-    return { error: 'Gagal masuk: Email atau kata sandi salah.' }
+    return { error: `Gagal masuk: ${error.message}` }
   }
 
   // Cek profil pengguna untuk role
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, status_aktif')
     .eq('id', data.user.id)
     .single()
+
+  if (profileError) {
+    console.error('Profile fetch error:', profileError)
+  }
 
   if (profile && profile.status_aktif === false) {
     await supabase.auth.signOut()
     return { error: 'Akun ini telah dinonaktifkan oleh Owner.' }
   }
 
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function logoutAction() {
