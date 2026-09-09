@@ -10,7 +10,11 @@ export default async function DashboardPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user?.id)
+    .maybeSingle()
 
   const isOwner = profile?.role === ROLES.OWNER
   const todayStr = new Date().toISOString().split('T')[0]
@@ -18,12 +22,14 @@ export default async function DashboardPage() {
   const isHariLibur = todayDay === profile?.hari_libur
 
   // Data untuk Karyawan
-  const { data: todayAttendance } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('employee_id', user.id)
-    .eq('tanggal', todayStr)
-    .maybeSingle()
+  const { data: todayAttendance } = user
+    ? await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user.id)
+        .eq('tanggal', todayStr)
+        .maybeSingle()
+    : { data: null }
 
   // Data untuk Owner
   const { data: allEmployees } = await supabase
@@ -33,7 +39,7 @@ export default async function DashboardPage() {
 
   const { data: todayAllAttendance } = await supabase
     .from('attendance')
-    .select('*, profiles(nama)')
+    .select('*, profiles:employee_id(nama)')
     .eq('tanggal', todayStr)
 
   return (

@@ -17,7 +17,7 @@ export default async function PayrollPage({ searchParams }) {
   // Ambil data payroll periode terpilih
   const { data: payrollList } = await supabase
     .from('payroll')
-    .select('*, profiles(nama, jabatan)')
+    .select('*, profiles:employee_id(nama, jabatan)')
     .eq('periode_bulan', currentMonth)
     .eq('periode_tahun', currentYear)
     .order('created_at', { ascending: true })

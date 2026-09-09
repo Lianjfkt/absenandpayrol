@@ -26,7 +26,7 @@ export default async function AbsensiPage() {
   // Ambil histori riwayat absensi bulan ini
   let query = supabase
     .from('attendance')
-    .select('*, profiles(nama, jabatan)')
+    .select('*, profiles:employee_id(nama, jabatan)')
     .order('tanggal', { ascending: false })
     .limit(30)
 

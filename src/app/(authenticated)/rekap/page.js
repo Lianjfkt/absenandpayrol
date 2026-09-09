@@ -13,7 +13,7 @@ export default async function RekapLaporanPage({ searchParams }) {
   // Ambil data payroll yang telah digenerate pada periode
   const { data: payrolls } = await supabase
     .from('payroll')
-    .select('*, profiles(nama, jabatan)')
+    .select('*, profiles:employee_id(nama, jabatan)')
     .eq('periode_bulan', currentMonth)
     .eq('periode_tahun', currentYear)
 
