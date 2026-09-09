@@ -1,64 +1,47 @@
-'use client'
-
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+export default async function LoginPage({ searchParams }) {
+  const params = await searchParams
+  const errorMsg = params?.error
 
-  async function handleLogin() {
+  async function handleFormLogin(formData) {
+    'use server'
+
+    const email = formData.get('email')
+    const password = formData.get('password')
+
     if (!email || !password) {
-      setError('Email dan kata sandi harus diisi.')
-      return
+      redirect('/login?error=Email%20dan%20password%20wajib%20diisi')
     }
 
-    setError('')
-    setLoading(true)
+    const supabase = await createClient()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    try {
-      const supabase = createClient()
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (authError) {
-        setError(`Gagal masuk: ${authError.message}`)
-        setLoading(false)
-        return
-      }
-
-      if (data?.user) {
-        // Cek profil status aktif
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('status_aktif')
-          .eq('id', data.user.id)
-          .single()
-
-        if (profile && profile.status_aktif === false) {
-          await supabase.auth.signOut()
-          setError('Akun ini telah dinonaktifkan oleh Owner.')
-          setLoading(false)
-          return
-        }
-
-        // Hard redirect ke /dashboard
-        window.location.href = '/dashboard'
-      } else {
-        setError('Gagal mendapatkan sesi login.')
-        setLoading(false)
-      }
-    } catch (err) {
-      setError(`Terjadi kesalahan: ${err.message}`)
-      setLoading(false)
+    if (error) {
+      redirect(`/login?error=${encodeURIComponent('Gagal masuk: ' + error.message)}`)
     }
+
+    if (data?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('status_aktif')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profile && profile.status_aktif === false) {
+        await supabase.auth.signOut()
+        redirect('/login?error=Akun%20ini%20telah%20dinonaktifkan')
+      }
+    }
+
+    redirect('/dashboard')
   }
 
   return (
@@ -99,12 +82,12 @@ export default function LoginPage() {
         </div>
 
         <Card variant="glass">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form action={handleFormLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
               Masuk ke Sistem
             </h2>
 
-            {error && (
+            {errorMsg && (
               <div
                 style={{
                   padding: '0.75rem',
@@ -115,7 +98,7 @@ export default function LoginPage() {
                   fontSize: '0.875rem',
                 }}
               >
-                {error}
+                {decodeURIComponent(errorMsg)}
               </div>
             )}
 
@@ -123,41 +106,29 @@ export default function LoginPage() {
               label="Email"
               name="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@kedai.com"
               required
               autoComplete="email"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleLogin()
-              }}
             />
 
             <Input
               label="Kata Sandi"
               name="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
               autoComplete="current-password"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleLogin()
-              }}
             />
 
             <Button
-              type="button"
+              type="submit"
               variant="primary"
               size="lg"
-              loading={loading}
-              onClick={handleLogin}
               style={{ width: '100%', marginTop: '0.5rem' }}
             >
-              {loading ? 'Memproses Masuk...' : 'Masuk Sekarang'}
+              Masuk Sekarang
             </Button>
-          </div>
+          </form>
         </Card>
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
