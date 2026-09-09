@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { loginAction } from '@/actions/auth'
+import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
 export default function LoginPage() {
-  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,15 +17,40 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const formData = new FormData(e.currentTarget)
-    const result = await loginAction(formData)
+    try {
+      const supabase = createClient()
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (result?.error) {
-      setError(result.error)
+      if (authError) {
+        setError(`Gagal masuk: ${authError.message}`)
+        setLoading(false)
+        return
+      }
+
+      if (data?.user) {
+        // Cek profil status aktif
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('status_aktif')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profile && profile.status_aktif === false) {
+          await supabase.auth.signOut()
+          setError('Akun ini telah dinonaktifkan oleh Owner.')
+          setLoading(false)
+          return
+        }
+
+        // Redirect langsung via window.location agar cookie & state halaman ter-refresh penuh
+        window.location.href = '/dashboard'
+      }
+    } catch (err) {
+      setError(`Terjadi kesalahan: ${err.message}`)
       setLoading(false)
-    } else if (result?.success) {
-      router.push('/dashboard')
-      router.refresh()
     }
   }
 
@@ -91,6 +116,8 @@ export default function LoginPage() {
               label="Email"
               name="email"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@kedai.com"
               required
               autoComplete="email"
@@ -100,6 +127,8 @@ export default function LoginPage() {
               label="Kata Sandi"
               name="password"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -112,7 +141,7 @@ export default function LoginPage() {
               loading={loading}
               style={{ width: '100%', marginTop: '0.5rem' }}
             >
-              Masuk Sekarang
+              {loading ? 'Memproses Masuk...' : 'Masuk Sekarang'}
             </Button>
           </form>
         </Card>
