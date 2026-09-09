@@ -19,7 +19,7 @@ export default async function AuthenticatedLayout({ children }) {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   const userRole = profile?.role || 'karyawan'
 
