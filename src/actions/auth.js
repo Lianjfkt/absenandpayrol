@@ -8,37 +8,33 @@ export async function loginAction(formData) {
   const password = formData.get('password')
 
   if (!email || !password) {
-    return { error: 'Email dan password harus diisi.' }
+    redirect('/login?error=Email%20dan%20password%20wajib%20diisi')
   }
 
   const supabase = await createClient()
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
 
   if (error) {
-    return { error: `Gagal masuk: ${error.message}` }
+    redirect(`/login?error=${encodeURIComponent('Gagal masuk: ' + error.message)}`)
   }
 
-  // Cek profil pengguna untuk role
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role, status_aktif')
-    .eq('id', data.user.id)
-    .single()
+  if (data?.user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status_aktif')
+      .eq('id', data.user.id)
+      .single()
 
-  if (profileError) {
-    console.error('Profile fetch error:', profileError)
+    if (profile && profile.status_aktif === false) {
+      await supabase.auth.signOut()
+      redirect('/login?error=Akun%20ini%20telah%20dinonaktifkan')
+    }
   }
 
-  if (profile && profile.status_aktif === false) {
-    await supabase.auth.signOut()
-    return { error: 'Akun ini telah dinonaktifkan oleh Owner.' }
-  }
-
-  return { success: true }
+  redirect('/dashboard')
 }
 
 export async function logoutAction() {

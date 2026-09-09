@@ -1,5 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { loginAction } from '@/actions/auth'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -7,42 +6,6 @@ import { Button } from '@/components/ui/Button'
 export default async function LoginPage({ searchParams }) {
   const params = await searchParams
   const errorMsg = params?.error
-
-  async function handleFormLogin(formData) {
-    'use server'
-
-    const email = formData.get('email')
-    const password = formData.get('password')
-
-    if (!email || !password) {
-      redirect('/login?error=Email%20dan%20password%20wajib%20diisi')
-    }
-
-    const supabase = await createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) {
-      redirect(`/login?error=${encodeURIComponent('Gagal masuk: ' + error.message)}`)
-    }
-
-    if (data?.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('status_aktif')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profile && profile.status_aktif === false) {
-        await supabase.auth.signOut()
-        redirect('/login?error=Akun%20ini%20telah%20dinonaktifkan')
-      }
-    }
-
-    redirect('/dashboard')
-  }
 
   return (
     <div
@@ -82,7 +45,7 @@ export default async function LoginPage({ searchParams }) {
         </div>
 
         <Card variant="glass">
-          <form action={handleFormLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form action={loginAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
               Masuk ke Sistem
             </h2>
