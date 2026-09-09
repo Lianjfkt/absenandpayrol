@@ -2,7 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function updateSession(request) {
-  let supabaseResponse = NextResponse.next({ request })
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,9 +20,11 @@ export async function updateSession(request) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
+          response = NextResponse.next({
+            request,
+          })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
           )
         },
       },
@@ -29,32 +35,25 @@ export async function updateSession(request) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Public routes that don't require auth
-  const publicPaths = ['/login', '/auth/callback']
-  const isPublicPath = publicPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  )
+  const { pathname } = request.nextUrl
 
-  // If not logged in and accessing protected route, redirect to login
-  if (!user && !isPublicPath) {
+  // Halaman public
+  const isLoginPage = pathname === '/login'
+  const isAuthCallback = pathname.startsWith('/auth/callback')
+
+  // Belum login tapi mencoba akses halaman terproteksi
+  if (!user && !isLoginPage && !isAuthCallback) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // If logged in and accessing login page, redirect to dashboard
-  if (user && request.nextUrl.pathname === '/login') {
+  // Sudah login tapi masih di halaman login
+  if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // If accessing root, redirect to dashboard or login
-  if (request.nextUrl.pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = user ? '/dashboard' : '/login'
-    return NextResponse.redirect(url)
-  }
-
-  return supabaseResponse
+  return response
 }
