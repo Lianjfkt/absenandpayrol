@@ -1,13 +1,14 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function createEmployeeAction(formData) {
   const supabase = await createClient()
 
-  // 1. Verifikasi role Owner
+  // 1. Verifikasi role Owner yang sedang login
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
     .from('profiles')
@@ -32,10 +33,16 @@ export async function createEmployeeAction(formData) {
     redirect('/karyawan/tambah?error=Nama,%20Email,%20dan%20Password%20wajib%20diisi')
   }
 
-  // 2. Buat akun Auth pengguna di Supabase
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  // 2. Buat akun Auth pengguna dengan Admin Client (Auto-Confirmed Email)
+  const adminClient = createAdminClient()
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
     email,
     password,
+    email_confirm: true, // Otomatis terkonfirmasi agar langsung bisa login
+    user_metadata: {
+      nama,
+      role: 'karyawan',
+    },
   })
 
   if (authError) {
@@ -48,7 +55,7 @@ export async function createEmployeeAction(formData) {
   }
 
   // 3. Masukkan record ke profiles
-  const { error: profileError } = await supabase.from('profiles').upsert({
+  const { error: profileError } = await adminClient.from('profiles').upsert({
     id: newUserId,
     nama,
     role: 'karyawan',
