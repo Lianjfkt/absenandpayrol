@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- 3. TABEL SETTINGS (Pengaturan Kedai & Bisnis)
 CREATE TABLE IF NOT EXISTS public.settings (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  nama_kedai TEXT DEFAULT 'Kedai Taichan & Chicken KA',
-  lokasi_lat DOUBLE PRECISION DEFAULT -6.200000,
-  lokasi_lng DOUBLE PRECISION DEFAULT 106.816666,
+  nama_kedai TEXT DEFAULT 'TAICHAN & CHICKEN KA',
+  lokasi_lat DOUBLE PRECISION DEFAULT -5.3677554,
+  lokasi_lng DOUBLE PRECISION DEFAULT 105.2420188,
   radius_meter INTEGER DEFAULT 10,
   jam_masuk TIME DEFAULT '07:00:00',
   jam_pulang TIME DEFAULT '18:00:00',
