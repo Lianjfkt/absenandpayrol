@@ -132,16 +132,41 @@ export async function manualAttendanceOverrideAction(formData) {
 
   const employee_id = formData.get('employee_id')
   const tanggal = formData.get('tanggal')
-  const status = formData.get('status')
+  const status = formData.get('status') || ATTENDANCE_STATUS.HADIR
+  const jam_masuk = formData.get('jam_masuk')
+  const jam_pulang = formData.get('jam_pulang')
+  const menit_telat = parseInt(formData.get('menit_telat') || '0', 10)
   const potongan_telat = parseInt(formData.get('potongan_telat') || '0', 10)
-  const catatan = formData.get('catatan') || 'Manual override oleh owner'
+  const catatan = formData.get('catatan') || 'Input manual oleh owner'
+
+  if (!employee_id || !tanggal) {
+    return { error: 'Karyawan dan Tanggal wajib diisi.' }
+  }
+
+  // Konversi jam masuk & jam pulang ke ISO timestamp dengan offset WIB (+07:00)
+  let jamCheckinISO = null
+  let jamCheckoutISO = null
+
+  if (jam_masuk && (status === 'hadir' || status === 'telat')) {
+    // Format tanggal dan jam ke WIB
+    const formattedJamMasuk = jam_masuk.length === 5 ? `${jam_masuk}:00` : jam_masuk
+    jamCheckinISO = new Date(`${tanggal}T${formattedJamMasuk}+07:00`).toISOString()
+  }
+
+  if (jam_pulang && (status === 'hadir' || status === 'telat')) {
+    const formattedJamPulang = jam_pulang.length === 5 ? `${jam_pulang}:00` : jam_pulang
+    jamCheckoutISO = new Date(`${tanggal}T${formattedJamPulang}+07:00`).toISOString()
+  }
 
   const { error } = await supabase.from('attendance').upsert(
     {
       employee_id,
       tanggal,
       status,
-      potongan_telat,
+      jam_checkin: jamCheckinISO,
+      jam_checkout: jamCheckoutISO,
+      menit_telat: status === 'telat' ? menit_telat : 0,
+      potongan_telat: status === 'telat' ? potongan_telat : 0,
       is_override: true,
       catatan,
     },
@@ -149,10 +174,43 @@ export async function manualAttendanceOverrideAction(formData) {
   )
 
   if (error) {
-    return { error: `Gagal memperbarui absensi: ${error.message}` }
+    return { error: `Gagal menyimpan data absensi: ${error.message}` }
   }
 
   revalidatePath('/absensi')
+  revalidatePath('/dashboard')
   revalidatePath('/rekap')
+  revalidatePath('/payroll')
   return { success: true }
 }
+
+/**
+ * Server action untuk menghapus data absensi (hanya Owner)
+ */
+export async function deleteAttendanceAction(attendanceId) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'owner') {
+    return { error: 'Hanya Owner yang dapat menghapus data absensi.' }
+  }
+
+  const { error } = await supabase
+    .from('attendance')
+    .delete()
+    .eq('id', attendanceId)
+
+  if (error) {
+    return { error: `Gagal menghapus absensi: ${error.message}` }
+  }
+
+  revalidatePath('/absensi')
+  revalidatePath('/dashboard')
+  revalidatePath('/rekap')
+  revalidatePath('/payroll')
+  return { success: true }
+}
+
