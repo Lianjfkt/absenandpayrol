@@ -6,6 +6,12 @@ import { isDalamRadius } from '@/lib/utils/geo'
 import { tentukanStatusAbsensi } from '@/lib/utils/attendance'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 
+/** Mengembalikan string tanggal YYYY-MM-DD dalam zona waktu WIB (UTC+7) */
+function getTodayWIB(now = new Date()) {
+  const wib = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  return wib.toISOString().split('T')[0]
+}
+
 /**
  * Server action untuk Check-In absensi karyawan
  */
@@ -41,7 +47,7 @@ export async function checkInAction(latitude, longitude, fotoCheckin = null, acc
 
   // 3. Tentukan waktu check in dan hitung status (Hadir/Telat)
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = getTodayWIB(now) // Tanggal WIB, bukan UTC
 
   const { status, menitTelat, potonganTelat } = tentukanStatusAbsensi(
     now,
@@ -87,7 +93,7 @@ export async function checkOutAction(latitude, longitude) {
   }
 
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = getTodayWIB(now) // Tanggal WIB, bukan UTC
 
   // Update attendance check-out
   const { data, error } = await supabase
@@ -117,6 +123,8 @@ export async function manualAttendanceOverrideAction(formData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat mengubah data absensi manual.' }

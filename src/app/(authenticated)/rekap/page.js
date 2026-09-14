@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
 import { RekapExportControls } from '@/components/rekap/RekapExportControls'
@@ -10,6 +11,12 @@ export default async function RekapLaporanPage({ searchParams }) {
   const currentYear = parseInt(params?.tahun || now.getFullYear().toString(), 10)
 
   const supabase = await createClient()
+
+  // Guard: hanya owner yang boleh akses halaman ini
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
   // Ambil data payroll yang telah digenerate pada periode
   const { data: payrolls } = await supabase
@@ -39,7 +46,7 @@ export default async function RekapLaporanPage({ searchParams }) {
       />
 
       {/* Ringkasan Finansial */}
-      <div className="grid grid-cols-1 grid-cols-3" style={{ gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <Card>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Gaji Bersih (Net)</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary-light)', marginTop: '0.25rem' }}>

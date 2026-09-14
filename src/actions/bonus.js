@@ -7,6 +7,8 @@ export async function addBonusAction(formData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat menambah bonus.' }
@@ -42,6 +44,8 @@ export async function deleteBonusAction(bonusId) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat menghapus bonus.' }

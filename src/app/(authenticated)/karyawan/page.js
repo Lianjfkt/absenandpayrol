@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -7,6 +8,12 @@ import { formatRupiah, HARI } from '@/lib/constants'
 
 export default async function KaryawanPage() {
   const supabase = await createClient()
+
+  // Guard: hanya owner yang boleh akses halaman ini
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
   const { data: employees } = await supabase
     .from('profiles')
@@ -29,7 +36,7 @@ export default async function KaryawanPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 grid-cols-2" style={{ gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
         {employees?.length === 0 ? (
           <Card style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem' }}>
             <p style={{ color: 'var(--text-muted)' }}>Belum ada data karyawan.</p>

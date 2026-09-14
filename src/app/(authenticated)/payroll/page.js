@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +14,12 @@ export default async function PayrollPage({ searchParams }) {
   const currentYear = parseInt(params?.tahun || now.getFullYear().toString(), 10)
 
   const supabase = await createClient()
+
+  // Guard: hanya owner yang boleh akses halaman ini
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
   // Ambil data payroll periode terpilih
   const { data: payrollList } = await supabase

@@ -36,7 +36,9 @@ export function kalkulasiPayrollKaryawan({
     }
 
     // Cek apakah hari kehadiran adalah hari libur mingguan karyawan
-    const tgl = new Date(att.tanggal)
+    // Parse manual agar tidak terpengaruh timezone server (UTC parse geser 1 hari)
+    const [y, m, d] = att.tanggal.split('-').map(Number)
+    const tgl = new Date(y, m - 1, d) // Konstruktor lokal, tidak UTC
     const dayOfWeek = tgl.getDay()
     if (dayOfWeek === employee.hari_libur && (att.status === ATTENDANCE_STATUS.HADIR || att.status === ATTENDANCE_STATUS.TELAT)) {
       totalHariLiburMasuk++

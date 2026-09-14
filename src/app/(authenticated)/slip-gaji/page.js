@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatRupiah } from '@/lib/constants'
@@ -8,12 +9,14 @@ export default async function SlipGajiKaryawanPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('nama')
     .eq('id', user.id)
     .single()
+
 
   // Ambil data payroll milik karyawan yang sedang login
   const { data: slipList } = await supabase

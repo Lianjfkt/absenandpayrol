@@ -13,6 +13,8 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
 
   // 1. Verifikasi Owner
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat men-generate payroll.' }
@@ -110,6 +112,8 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat mengubah status pembayaran.' }
@@ -139,6 +143,8 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi habis, silakan login kembali.' }
+
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat mengubah adjustment.' }
@@ -148,13 +154,15 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
   if (!current) return { error: 'Data payroll tidak ditemukan.' }
 
   const adjNum = parseInt(adjustment || '0', 10)
+  // Hitung ulang total gaji dengan semua komponen termasuk potongan kasbon
   const totalGajiBaru = Math.max(
     0,
     current.gaji_pokok +
       current.total_bonus_libur +
       current.total_bonus_manual -
       current.total_potongan_telat -
-      current.total_potongan_off +
+      current.total_potongan_off -
+      (current.total_potongan_kasbon || 0) + // Fix: kasbon sebelumnya tidak dihitung
       adjNum
   )
 
