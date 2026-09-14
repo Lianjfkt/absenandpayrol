@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { addBonusAction, deleteBonusAction } from '@/actions/bonus'
 import { updateAdjustmentAction } from '@/actions/payroll'
+import { SlipActions } from '@/components/payroll/SlipActions'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 
 export default async function DetailPayrollPage({ params }) {
@@ -125,8 +126,18 @@ export default async function DetailPayrollPage({ params }) {
             <span style={{ color: 'var(--ink)' }}>TOTAL GAJI BERSIH</span>
             <span style={{ color: 'var(--accent)', fontSize: '1.35rem' }}>{formatRupiah(payroll.total_gaji)}</span>
           </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+            <SlipActions
+              slip={payroll}
+              namaKaryawan={payroll.profiles?.nama || 'Karyawan'}
+              isOwner={true}
+              employee={payroll.profiles || {}}
+            />
+          </div>
         </div>
       </Card>
+
 
       {/* Form Tambah Bonus Manual */}
       <Card variant="default">

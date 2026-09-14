@@ -40,16 +40,61 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
     }
   }
 
-  // Ambil Foto dari Video Canvas
-  const takeSnapshot = () => {
+  // Ambil Foto dari Video Canvas dengan Watermark Real-time Keamanan
+  const takeSnapshot = (lat = null, lng = null, acc = null) => {
     if (!videoRef.current) return
     const video = videoRef.current
     const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth || 320
-    canvas.height = video.videoHeight || 320
+    const width = video.videoWidth || 480
+    const height = video.videoHeight || 480
+    canvas.width = width
+    canvas.height = height
     const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const base64 = canvas.toDataURL('image/jpeg', 0.6) // Kompresi foto
+
+    // 1. Gambar video frame
+    ctx.drawImage(video, 0, 0, width, height)
+
+    // 2. Gambar Watermark Banner Keamanan Anti-Fraud di bagian bawah
+    const bannerHeight = Math.max(70, Math.floor(height * 0.22))
+    ctx.fillStyle = 'rgba(11, 15, 25, 0.78)'
+    ctx.fillRect(0, height - bannerHeight, width, bannerHeight)
+
+    // Aksen garis oranye di atas banner
+    ctx.fillStyle = '#10B981'
+    ctx.fillRect(0, height - bannerHeight, width, 3)
+
+    // 3. Tulis Informasi Stamp
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = `bold ${Math.max(12, Math.floor(width * 0.035))}px monospace`
+    
+    const nowWIB = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+
+    const marginX = 14
+    const startY = height - bannerHeight + 18
+    const lineHeight = Math.max(14, Math.floor(bannerHeight / 4.2))
+
+    ctx.fillText(`🏢 TAICHAN & CHICKEN KA - VALIDASI`, marginX, startY)
+    ctx.font = `${Math.max(10, Math.floor(width * 0.028))}px monospace`
+    ctx.fillStyle = '#E2E8F0'
+    ctx.fillText(`🕒 ${nowWIB} WIB`, marginX, startY + lineHeight)
+    
+    if (lat && lng) {
+      ctx.fillText(`📍 Lat: ${Number(lat).toFixed(6)}, Lng: ${Number(lng).toFixed(6)}`, marginX, startY + lineHeight * 2)
+      ctx.fillStyle = acc <= 20 ? '#86EFAC' : '#FCD34D'
+      ctx.fillText(`🛡️ Akurasi GPS: ±${acc}m (Verified Real-time)`, marginX, startY + lineHeight * 3)
+    } else {
+      ctx.fillText(`🛡️ Security Stamp: Verified Geo-Camera`, marginX, startY + lineHeight * 2)
+    }
+
+    const base64 = canvas.toDataURL('image/jpeg', 0.65) // Kompresi foto
     setCapturedPhoto(base64)
     stopCamera()
   }
@@ -91,14 +136,28 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
       async (pos) => {
         clearTimeout(timer)
         const { latitude, longitude, accuracy } = pos.coords
-        setGpsAccuracy(Math.round(accuracy))
+        const roundedAcc = Math.round(accuracy)
+        setGpsAccuracy(roundedAcc)
+
+        // Deteksi Keamanan Anti-Fake GPS & Emulator
+        if (roundedAcc === 0) {
+          setErrorMessage('Peringatan Keamanan: Terdeteksi akurasi GPS tidak wajar (0m). Mohon matikan aplikasi Fake GPS / Mock Location pada perangkat Anda.')
+          setLoading(false)
+          return
+        }
+
+        if (roundedAcc > 75) {
+          setErrorMessage(`Akurasi GPS terlalu lemah (±${roundedAcc} meter). Mohon aktifkan mode "Akurasi Tinggi" pada GPS HP Anda dan tunggu sinyal satelit stabil.`)
+          setLoading(false)
+          return
+        }
 
         try {
           let res
           if (isCheckOut) {
             res = await checkOutAction(latitude, longitude)
           } else {
-            res = await checkInAction(latitude, longitude, photoData, Math.round(accuracy))
+            res = await checkInAction(latitude, longitude, photoData, roundedAcc)
           }
 
           if (res?.error) {

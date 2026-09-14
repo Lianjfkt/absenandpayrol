@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
+import { OwnerAnalyticsView } from '@/components/dashboard/OwnerAnalyticsView'
 import { ROLES, formatRupiah, formatJam } from '@/lib/constants'
 
 export default async function DashboardPage() {
@@ -47,15 +48,45 @@ export default async function DashboardPage() {
   const attendancePercentage = Math.min(100, Math.round((hadirDays / targetDays) * 100))
 
   // Data untuk Owner
-  const { data: allEmployees } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'karyawan')
+  let allEmployees = []
+  let todayAllAttendance = []
+  let ownerMonthlyAttendance = []
+  let ownerMonthlyLeaves = []
+  let activeLoans = []
 
-  const { data: todayAllAttendance } = await supabase
-    .from('attendance')
-    .select('*, profiles:employee_id(nama)')
-    .eq('tanggal', todayStr)
+  if (isOwner) {
+    const { data: empData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'karyawan')
+      .order('nama', { ascending: true })
+
+    const { data: todayAttData } = await supabase
+      .from('attendance')
+      .select('*, profiles:employee_id(nama)')
+      .eq('tanggal', todayStr)
+
+    const { data: mAttData } = await supabase
+      .from('attendance')
+      .select('*')
+      .gte('tanggal', currentMonthStart)
+
+    const { data: mLeavesData } = await supabase
+      .from('leaves')
+      .select('*')
+      .gte('tanggal_selesai', currentMonthStart)
+
+    const { data: loansData } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('status', 'aktif')
+
+    allEmployees = empData || []
+    todayAllAttendance = todayAttData || []
+    ownerMonthlyAttendance = mAttData || []
+    ownerMonthlyLeaves = mLeavesData || []
+    activeLoans = loansData || []
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
@@ -63,11 +94,11 @@ export default async function DashboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', margin: 0 }}>
-            Selamat Pagi, {profile?.nama || 'Pengguna'} 👋
+            Selamat Datang, {profile?.nama || 'Pengguna'} 👋
           </h1>
           <p style={{ color: 'var(--ink-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
             {isOwner
-              ? 'Ringkasan aktivitas operasional & tim kedai hari ini'
+              ? 'Monitoring kedisiplinan staf, performa bisnis & proyeksi keuangan kedai'
               : 'Pantau kehadiran, jadwal shift & perkiraan gaji Anda'}
           </p>
         </div>
@@ -136,7 +167,7 @@ export default async function DashboardPage() {
 
             <div style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               paddingTop: '0.75rem',
               borderTop: '1px solid var(--border)',
@@ -152,39 +183,23 @@ export default async function DashboardPage() {
 
       {/* DASHBOARD OWNER */}
       {isOwner && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Quick Metrics Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-            <Card variant="accent-soft">
-              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Total Staf</div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--ink)', marginTop: '0.25rem' }}>
-                {allEmployees?.filter((e) => e.status_aktif).length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>orang</span>
-              </div>
-            </Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          {/* Visual Analytics Overview */}
+          <OwnerAnalyticsView
+            employees={allEmployees}
+            monthlyAttendance={ownerMonthlyAttendance}
+            monthlyLeaves={ownerMonthlyLeaves}
+            activeLoans={activeLoans}
+          />
 
-            <Card>
-              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Hadir Hari Ini</div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16A34A', marginTop: '0.25rem' }}>
-                {todayAllAttendance?.filter((a) => a.status === 'hadir').length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink-muted)' }}>tim</span>
-              </div>
-            </Card>
-
-            <Card>
-              <div style={{ color: 'var(--ink-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Telat Hari Ini</div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent)', marginTop: '0.25rem' }}>
-                {todayAllAttendance?.filter((a) => a.status === 'telat').length || 0} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink-muted)' }}>orang</span>
-              </div>
-            </Card>
-          </div>
-
-          {/* List Kehadiran Staf */}
+          {/* Status Presensi Hari Ini */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
                 Status Presensi Hari Ini
               </h2>
               <Link href="/absensi">
-                <Button variant="outline" size="sm">Lihat Semua</Button>
+                <Button variant="outline" size="sm">Buka Presensi Tim</Button>
               </Link>
             </div>
 
@@ -220,7 +235,7 @@ export default async function DashboardPage() {
 
                     <div>
                       {att ? (
-                        <Badge variant={att.status === 'hadir' ? 'success' : 'warning'}>
+                        <Badge variant={att.status === 'hadir' ? 'success' : att.status === 'telat' ? 'warning' : 'danger'}>
                           {att.status} {att.menit_telat > 0 ? `(${att.menit_telat}m)` : ''}
                         </Badge>
                       ) : (
@@ -237,3 +252,5 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
+

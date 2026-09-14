@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { Header } from '@/components/layout/Header'
+import { PWAInstallPrompt } from '@/components/ui/PWAInstallPrompt'
 
 export default async function AuthenticatedLayout({ children }) {
   const supabase = await createClient()
@@ -39,6 +40,10 @@ export default async function AuthenticatedLayout({ children }) {
 
       {/* Navigation Bar untuk Mobile */}
       <MobileNav userRole={userRole} />
+
+      {/* Prompt Install PWA */}
+      <PWAInstallPrompt />
     </div>
   )
 }
+

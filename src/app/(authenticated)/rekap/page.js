@@ -25,6 +25,12 @@ export default async function RekapLaporanPage({ searchParams }) {
     .eq('periode_bulan', currentMonth)
     .eq('periode_tahun', currentYear)
 
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle()
+
   const totalPengeluaran = payrolls?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
   const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off + (p.total_potongan_kasbon || 0)), 0) || 0
   const totalBonus = payrolls?.reduce((acc, p) => acc + (p.total_bonus_libur + p.total_bonus_manual), 0) || 0
@@ -45,7 +51,9 @@ export default async function RekapLaporanPage({ searchParams }) {
         payrolls={payrolls || []}
         currentMonth={currentMonth}
         currentYear={currentYear}
+        settings={settings || {}}
       />
+
 
       {/* Ringkasan Finansial */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>

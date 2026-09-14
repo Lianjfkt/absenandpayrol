@@ -1,16 +1,24 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { downloadCSV, triggerPrint } from '@/lib/utils/export'
+import { useRouter } from 'next/navigation'
+import { downloadCSV } from '@/lib/utils/export'
+import { generateLaporanKeuanganPDF } from '@/lib/utils/pdfGenerator'
 import { Button } from '@/components/ui/Button'
 
-export function RekapExportControls({ payrolls = [], currentMonth, currentYear }) {
+export function RekapExportControls({ payrolls = [], currentMonth, currentYear, settings = {} }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const handlePeriodChange = (e) => {
     const [year, month] = e.target.value.split('-')
     router.push(`/rekap?bulan=${parseInt(month, 10)}&tahun=${year}`)
+  }
+
+  const handleExportPDF = () => {
+    if (!payrolls.length) {
+      alert('Tidak ada data payroll untuk di-export.')
+      return
+    }
+    generateLaporanKeuanganPDF(payrolls, currentMonth, currentYear, settings)
   }
 
   const handleExportCSV = () => {
@@ -79,8 +87,8 @@ export function RekapExportControls({ payrolls = [], currentMonth, currentYear }
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <Button variant="outline" size="sm" onClick={triggerPrint}>
-          🖨️ Cetak / PDF
+        <Button variant="outline" size="sm" onClick={handleExportPDF}>
+          📄 Unduh Laporan PDF
         </Button>
         <Button variant="primary" size="sm" onClick={handleExportCSV}>
           📥 Export CSV
@@ -89,3 +97,4 @@ export function RekapExportControls({ payrolls = [], currentMonth, currentYear }
     </div>
   )
 }
+

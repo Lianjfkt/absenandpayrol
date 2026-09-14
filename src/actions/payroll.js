@@ -50,6 +50,15 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       .gte('tanggal', startDateStr)
       .lte('tanggal', endDateStr)
 
+    // Ambil izin yang disetujui (approved) pada periode bulan ini
+    const { data: leaves } = await supabase
+      .from('leaves')
+      .select('*')
+      .eq('employee_id', emp.id)
+      .eq('status', 'approved')
+      .lte('tanggal_mulai', endDateStr)
+      .gte('tanggal_selesai', startDateStr)
+
     // Ambil bonus manual bulan ini
     const { data: bonuses } = await supabase
       .from('bonus')
@@ -81,6 +90,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       attendances: attendances || [],
       bonuses: bonuses || [],
       loans: activeLoans || [],
+      leaves: leaves || [],
       settings: currentSettings,
       adjustment: adj,
       periodeBulan,
@@ -106,7 +116,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
 }
 
 /**
- * Server action: Update Status Pembayaran Gaji
+ * Server action: Update Status Pembayaran Gaji & Auto-Deduct Kasbon Karyawan
  */
 export async function updatePaymentStatusAction(payrollId, statusPembayaran, tanggalDibayar = null) {
   const supabase = await createClient()
@@ -119,6 +129,20 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
     return { error: 'Hanya Owner yang dapat mengubah status pembayaran.' }
   }
 
+  // Ambil record payroll saat ini
+  const { data: currentPayroll } = await supabase
+    .from('payroll')
+    .select('*')
+    .eq('id', payrollId)
+    .single()
+
+  if (!currentPayroll) {
+    return { error: 'Data payroll tidak ditemukan.' }
+  }
+
+  const prevStatus = currentPayroll.status_pembayaran
+
+  // 1. Update status pembayaran payroll
   const { error } = await supabase
     .from('payroll')
     .update({
@@ -132,9 +156,74 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
     return { error: `Gagal memperbarui status pembayaran: ${error.message}` }
   }
 
+  // 2. Otomatisasi Pemotongan Saldo Kasbon jika berubah menjadi 'sudah_dibayar'
+  if (prevStatus !== 'sudah_dibayar' && statusPembayaran === 'sudah_dibayar') {
+    const { data: activeLoans } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('employee_id', currentPayroll.employee_id)
+      .eq('status', 'aktif')
+      .order('created_at', { ascending: true })
+
+    if (activeLoans && activeLoans.length > 0 && currentPayroll.total_potongan_kasbon > 0) {
+      let sisaPotongan = currentPayroll.total_potongan_kasbon
+      for (const loan of activeLoans) {
+        if (sisaPotongan <= 0) break
+        const deduction = Math.min(loan.sisa_pinjaman, loan.cicilan_per_bulan, sisaPotongan)
+        const newSisa = Math.max(0, loan.sisa_pinjaman - deduction)
+        const newStatus = newSisa === 0 ? 'lunas' : 'aktif'
+
+        await supabase
+          .from('loans')
+          .update({
+            sisa_pinjaman: newSisa,
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', loan.id)
+
+        sisaPotongan -= deduction
+      }
+    }
+  }
+
+  // 3. Rollback pengembalian saldo kasbon jika diubah kembali ke 'belum_dibayar'
+  else if (prevStatus === 'sudah_dibayar' && statusPembayaran === 'belum_dibayar') {
+    const { data: empLoans } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('employee_id', currentPayroll.employee_id)
+      .order('created_at', { ascending: false })
+
+    if (empLoans && empLoans.length > 0 && currentPayroll.total_potongan_kasbon > 0) {
+      let sisaKembali = currentPayroll.total_potongan_kasbon
+      for (const loan of empLoans) {
+        if (sisaKembali <= 0) break
+        const maxRestore = loan.nominal_pinjaman - loan.sisa_pinjaman
+        const toRestore = Math.min(maxRestore, sisaKembali)
+        if (toRestore > 0) {
+          const newSisa = loan.sisa_pinjaman + toRestore
+          await supabase
+            .from('loans')
+            .update({
+              sisa_pinjaman: newSisa,
+              status: 'aktif',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', loan.id)
+
+          sisaKembali -= toRestore
+        }
+      }
+    }
+  }
+
   revalidatePath('/payroll')
+  revalidatePath('/kasbon')
+  revalidatePath('/rekap')
   return { success: true }
 }
+
 
 /**
  * Server action: Update Adjustment Manual Payroll
