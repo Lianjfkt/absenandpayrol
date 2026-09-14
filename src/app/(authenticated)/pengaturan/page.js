@@ -17,17 +17,19 @@ export default async function PengaturanPage() {
   const s = settings || DEFAULT_SETTINGS
 
   return (
-    <div style={{ maxWidth: '700px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ maxWidth: '700px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem', width: '100%' }}>
       <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Pengaturan Kedai & Bisnis</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', margin: 0 }}>
+          Pengaturan Kedai & Bisnis
+        </h1>
+        <p style={{ color: 'var(--ink-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
           Konfigurasi radius GPS, jam operasional, skema toleransi, dan denda keterlambatan.
         </p>
       </div>
 
       <Card variant="default">
         <form action={updateSettingsAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--primary)' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>
             1. Profil & Titik Lokasi GPS Kedai
           </h3>
 
@@ -38,7 +40,7 @@ export default async function PengaturanPage() {
             required
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
             <Input
               label="Latitude Kedai"
               name="lokasi_lat"
@@ -65,11 +67,11 @@ export default async function PengaturanPage() {
             required
           />
 
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--primary)', marginTop: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', marginTop: '0.5rem', margin: 0 }}>
             2. Jam Kerja & Toleransi
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
             <Input
               label="Jam Masuk Standar"
               name="jam_masuk"
@@ -94,27 +96,27 @@ export default async function PengaturanPage() {
             required
           />
 
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--primary)', marginTop: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', marginTop: '0.5rem', margin: 0 }}>
             3. Skema Denda Telat Bertingkat
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.65rem' }}>
             <Input
-              label="Tier 1 (Rp/Menit)"
+              label="Tier 1 (Rp/Mnt)"
               name="tier1_rate"
               type="number"
               defaultValue={s.tier1_rate ?? 1000}
               required
             />
             <Input
-              label="Tier 2 (Rp/Menit)"
+              label="Tier 2 (Rp/Mnt)"
               name="tier2_rate"
               type="number"
               defaultValue={s.tier2_rate ?? 2000}
               required
             />
             <Input
-              label="Tier 3 (>20m Flat Rp)"
+              label="Tier 3 (>20m Rp)"
               name="tier3_flat"
               type="number"
               defaultValue={s.tier3_flat ?? 50000}
@@ -122,20 +124,20 @@ export default async function PengaturanPage() {
             />
           </div>
 
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--primary)', marginTop: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', marginTop: '0.5rem', margin: 0 }}>
             4. Potongan Off & Bonus Masuk Libur
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
             <Input
-              label="Potongan Off / Alpa (Rp / Hari)"
+              label="Potongan Off (Rp/Hari)"
               name="potongan_off"
               type="number"
               defaultValue={s.potongan_off ?? 50000}
               required
             />
             <Input
-              label="Bonus Masuk Libur (Rp / Hari)"
+              label="Bonus Libur (Rp/Hari)"
               name="bonus_masuk_libur"
               type="number"
               defaultValue={s.bonus_masuk_libur ?? 50000}
@@ -143,8 +145,8 @@ export default async function PengaturanPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <Button variant="primary" size="lg" type="submit">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+            <Button variant="primary" size="lg" type="submit" style={{ width: '100%', maxWidth: '220px' }}>
               Simpan Pengaturan
             </Button>
           </div>

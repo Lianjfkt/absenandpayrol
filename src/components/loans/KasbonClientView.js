@@ -116,10 +116,10 @@ export function KasbonClientView({ loans = [], employees = [] }) {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '0.75rem',
-                  background: 'var(--surface-muted)',
-                  padding: '1rem',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                  gap: '0.65rem',
+                  background: 'var(--bg-surface-muted)',
+                  padding: '0.85rem 1rem',
                   borderRadius: 'var(--radius-input)',
                   border: '1px solid var(--border)',
                   fontSize: '0.85rem',
@@ -127,16 +127,16 @@ export function KasbonClientView({ loans = [], employees = [] }) {
                 }}
               >
                 <div>
-                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>TOTAL PINJAMAN</div>
-                  <div style={{ fontWeight: 800, color: 'var(--ink)', marginTop: '0.2rem' }}>{formatRupiah(item.nominal_pinjaman)}</div>
+                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.72rem', fontWeight: 600 }}>TOTAL PINJAMAN</div>
+                  <div style={{ fontWeight: 800, color: 'var(--ink)', marginTop: '0.2rem', fontSize: '0.95rem' }}>{formatRupiah(item.nominal_pinjaman)}</div>
                 </div>
                 <div>
-                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>CICILAN / BULAN</div>
-                  <div style={{ fontWeight: 800, color: 'var(--accent)', marginTop: '0.2rem' }}>{formatRupiah(item.cicilan_per_bulan)}</div>
+                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.72rem', fontWeight: 600 }}>CICILAN / BLN</div>
+                  <div style={{ fontWeight: 800, color: 'var(--accent)', marginTop: '0.2rem', fontSize: '0.95rem' }}>{formatRupiah(item.cicilan_per_bulan)}</div>
                 </div>
                 <div>
-                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>SISA PINJAMAN</div>
-                  <div style={{ fontWeight: 800, color: item.sisa_pinjaman > 0 ? '#B91C1C' : '#15803D', marginTop: '0.2rem' }}>
+                  <div style={{ color: 'var(--ink-muted)', fontSize: '0.72rem', fontWeight: 600 }}>SISA PINJAMAN</div>
+                  <div style={{ fontWeight: 800, color: item.sisa_pinjaman > 0 ? 'var(--danger)' : 'var(--success)', marginTop: '0.2rem', fontSize: '0.95rem' }}>
                     {formatRupiah(item.sisa_pinjaman)}
                   </div>
                 </div>

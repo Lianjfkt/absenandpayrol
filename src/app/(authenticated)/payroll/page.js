@@ -34,11 +34,13 @@ export default async function PayrollPage({ searchParams }) {
   const generateActionWithPeriod = generatePayrollPeriodAction.bind(null, currentMonth, currentYear)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Penggajian (Payroll)</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', margin: 0 }}>
+            Penggajian (Payroll)
+          </h1>
+          <p style={{ color: 'var(--ink-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
             Periode: Bulan {currentMonth}, Tahun {currentYear}
           </p>
         </div>
@@ -51,14 +53,14 @@ export default async function PayrollPage({ searchParams }) {
       </div>
 
       {/* Ringkasan Total */}
-      <Card variant="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <Card variant="accent-soft" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', padding: '1.25rem 1.5rem' }}>
         <div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Pengeluaran Gaji Bulan Ini:</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-light)' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontWeight: 600 }}>Total Pengeluaran Gaji Bulan Ini:</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent)', marginTop: '0.2rem' }}>
             {formatRupiah(totalPayrollSemua)}
           </div>
         </div>
-        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+        <div style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 600 }}>
           Total Karyawan Terhitung: <strong>{payrollList?.length || 0} Orang</strong>
         </div>
       </Card>
@@ -67,7 +69,7 @@ export default async function PayrollPage({ searchParams }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {payrollList?.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <p style={{ color: 'var(--text-muted)' }}>
+            <p style={{ color: 'var(--ink-muted)', margin: 0 }}>
               Belum ada kalkulasi payroll untuk periode Bulan {currentMonth}/{currentYear}.
             </p>
             <form action={generateActionWithPeriod} style={{ marginTop: '1rem' }}>
@@ -85,11 +87,11 @@ export default async function PayrollPage({ searchParams }) {
             )
 
             return (
-              <Card key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Card key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{item.profiles?.nama}</h3>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{item.profiles?.nama}</h3>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
                       {item.profiles?.jabatan || 'Staf Operasional'}
                     </div>
                   </div>
@@ -105,56 +107,57 @@ export default async function PayrollPage({ searchParams }) {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
                     gap: '0.75rem',
-                    background: 'var(--bg-main)',
-                    padding: '0.9rem',
-                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--bg-surface-muted)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-input)',
                     fontSize: '0.85rem',
+                    border: '1px solid var(--border)',
                   }}
                 >
                   <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Gaji Pokok:</div>
-                    <div style={{ fontWeight: 600 }}>{formatRupiah(item.gaji_pokok)}</div>
+                    <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Gaji Pokok</div>
+                    <div style={{ fontWeight: 700, color: 'var(--ink)', marginTop: '0.2rem' }}>{formatRupiah(item.gaji_pokok)}</div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Potongan Telat:</div>
-                    <div style={{ fontWeight: 600, color: item.total_potongan_telat > 0 ? 'var(--danger)' : 'inherit' }}>
+                    <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Potongan Telat</div>
+                    <div style={{ fontWeight: 700, color: item.total_potongan_telat > 0 ? 'var(--danger)' : 'inherit', marginTop: '0.2rem' }}>
                       -{formatRupiah(item.total_potongan_telat)}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Potongan Off:</div>
-                    <div style={{ fontWeight: 600, color: item.total_potongan_off > 0 ? 'var(--danger)' : 'inherit' }}>
+                    <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Potongan Off</div>
+                    <div style={{ fontWeight: 700, color: item.total_potongan_off > 0 ? 'var(--danger)' : 'inherit', marginTop: '0.2rem' }}>
                       -{formatRupiah(item.total_potongan_off)}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Bonus Masuk Libur:</div>
-                    <div style={{ fontWeight: 600, color: item.total_bonus_libur > 0 ? 'var(--success)' : 'inherit' }}>
+                    <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Bonus Libur</div>
+                    <div style={{ fontWeight: 700, color: item.total_bonus_libur > 0 ? 'var(--success)' : 'inherit', marginTop: '0.2rem' }}>
                       +{formatRupiah(item.total_bonus_libur)}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Bonus Manual:</div>
-                    <div style={{ fontWeight: 600, color: item.total_bonus_manual > 0 ? 'var(--success)' : 'inherit' }}>
+                    <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Bonus Manual</div>
+                    <div style={{ fontWeight: 700, color: item.total_bonus_manual > 0 ? 'var(--success)' : 'inherit', marginTop: '0.2rem' }}>
                       +{formatRupiah(item.total_bonus_manual)}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                   <div>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Total Diterima: </span>
-                    <strong style={{ fontSize: '1.2rem', color: 'var(--primary-light)' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>Total Diterima: </span>
+                    <strong style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
                       {formatRupiah(item.total_gaji)}
                     </strong>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <form action={togglePaymentAction}>
                       <Button variant="outline" size="sm" type="submit">
-                        {item.status_pembayaran === 'sudah_dibayar' ? 'Tandai Belum' : 'Tandai Sudah Dibayar'}
+                        {item.status_pembayaran === 'sudah_dibayar' ? 'Tandai Belum' : 'Tandai Lunas'}
                       </Button>
                     </form>
                     <Link href={`/payroll/${item.id}`}>

@@ -29,19 +29,10 @@ export default async function AuthenticatedLayout({ children }) {
       <Sidebar userRole={userRole} />
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh' }}>
         <Header user={user} profile={profile} />
 
-        <main
-          style={{
-            flex: 1,
-            padding: '1.5rem',
-            paddingBottom: 'calc(var(--bottom-nav-height) + 1.5rem)', // Tambahan ruang untuk Mobile Bottom Nav
-            maxWidth: '1200px',
-            width: '100%',
-            margin: '0 auto',
-          }}
-        >
+        <main className="main-content">
           {children}
         </main>
       </div>

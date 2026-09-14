@@ -31,13 +31,13 @@ export default async function EditKaryawanPage({ params }) {
   const toggleStatusActionWithId = toggleEmployeeStatusAction.bind(null, id, employee.status_aktif)
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <Link href="/karyawan" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          <Link href="/karyawan" style={{ color: 'var(--ink-muted)', fontSize: '0.875rem', fontWeight: 600 }}>
             ← Kembali ke Daftar Karyawan
           </Link>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.5rem' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: '0.5rem' }}>
             Detail & Edit Karyawan
           </h1>
         </div>

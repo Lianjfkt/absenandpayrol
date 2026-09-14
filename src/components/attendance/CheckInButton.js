@@ -143,41 +143,44 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', width: '100%', maxWidth: '380px', margin: '0 auto' }}>
       {isHariLibur && (
         <div
           style={{
-            padding: '0.6rem 1rem',
+            padding: '0.75rem 1rem',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--info-bg)',
-            color: 'var(--info)',
+            background: 'var(--accent-soft)',
+            color: 'var(--accent)',
             fontSize: '0.85rem',
+            fontWeight: 600,
             textAlign: 'center',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
+            border: '1px solid rgba(249, 115, 22, 0.25)',
+            width: '100%',
           }}
         >
-          🎉 Hari ini adalah Hari Libur Mingguan Anda. Jika Anda masuk kerja hari ini, Anda akan mendapatkan bonus Rp 50.000!
+          🎉 Hari ini Jadwal Libur Mingguan Anda. Jika Anda masuk hari ini, Anda berhak mendapat bonus Rp 50.000!
         </div>
       )}
 
       {/* Indikator Akurasi GPS */}
       {gpsAccuracy !== null && (
-        <div style={{ fontSize: '0.8rem', color: gpsAccuracy <= 20 ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <span>🛰️ Akurasi GPS: ±{gpsAccuracy} meter</span>
-          {gpsAccuracy <= 20 ? ' (Sinyal Baik)' : ' (Sinyal Sedang)'}
+        <div style={{ fontSize: '0.8rem', color: gpsAccuracy <= 20 ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+          <span>🛰️ Akurasi GPS: ±{gpsAccuracy}m</span>
+          <span>{gpsAccuracy <= 20 ? '(Sinyal Akurat)' : '(Sinyal Sedang)'}</span>
         </div>
       )}
 
       {errorMessage && (
         <div
           style={{
-            padding: '0.75rem',
+            padding: '0.85rem 1rem',
             borderRadius: 'var(--radius-md)',
             background: 'var(--danger-bg)',
             color: 'var(--danger)',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
+            fontWeight: 600,
             textAlign: 'center',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            border: '1px solid rgba(220, 38, 38, 0.25)',
             width: '100%',
           }}
         >
@@ -188,13 +191,14 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
       {statusMessage && (
         <div
           style={{
-            padding: '0.75rem',
+            padding: '0.85rem 1rem',
             borderRadius: 'var(--radius-md)',
             background: 'var(--success-bg)',
             color: 'var(--success)',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
+            fontWeight: 600,
             textAlign: 'center',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            border: '1px solid rgba(22, 163, 74, 0.25)',
             width: '100%',
           }}
         >
@@ -210,15 +214,15 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '0.75rem',
-            padding: '1rem',
-            background: 'var(--bg-surface-elevated)',
-            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem',
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-card)',
             border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-card)',
             width: '100%',
-            maxWidth: '320px',
           }}
         >
-          <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>📸 Ambil Foto Selfie Kehadiran</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--ink)' }}>📸 Foto Selfie Kehadiran</div>
           <video
             ref={videoRef}
             autoPlay
@@ -226,7 +230,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             muted
             style={{
               width: '100%',
-              height: '240px',
+              maxHeight: '220px',
               objectFit: 'cover',
               borderRadius: 'var(--radius-md)',
               background: '#000',
@@ -248,9 +252,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
               variant="primary"
               size="sm"
               style={{ flex: 1 }}
-              onClick={() => {
-                takeSnapshot()
-              }}
+              onClick={takeSnapshot}
             >
               Ambil Foto
             </Button>
@@ -265,23 +267,26 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '0.75rem',
-            padding: '1rem',
-            background: 'var(--bg-surface-elevated)',
-            borderRadius: 'var(--radius-lg)',
+            gap: '0.85rem',
+            padding: '1.25rem',
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-card)',
             border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-card)',
+            width: '100%',
           }}
         >
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Foto Siap Dikirim:</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontWeight: 600 }}>Foto Siap Dikirim:</div>
           <img
             src={capturedPhoto}
             alt="Selfie Checkin"
-            style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '50%', border: '2px solid var(--primary)' }}
+            style={{ width: '130px', height: '130px', objectFit: 'cover', borderRadius: '50%', border: '3px solid var(--accent)' }}
           />
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
             <Button
               variant="outline"
               size="sm"
+              style={{ flex: 1 }}
               onClick={() => {
                 setCapturedPhoto(null)
                 startCamera()
@@ -292,10 +297,11 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             <Button
               variant="primary"
               size="sm"
+              style={{ flex: 1 }}
               loading={loading}
               onClick={() => handleLocationAndSubmit(false, capturedPhoto)}
             >
-              Kirim Check-In
+              Kirim Presensi
             </Button>
           </div>
         </div>
@@ -303,7 +309,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
 
       {/* Tombol Check In / Check Out Utama */}
       {!showCamera && !capturedPhoto && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
           {!isCheckedIn ? (
             <button
               type="button"
@@ -311,10 +317,10 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
               disabled={loading}
               className="pulse-animation"
               style={{
-                width: '160px',
-                height: '160px',
+                width: '150px',
+                height: '150px',
                 borderRadius: '50%',
-                background: 'var(--primary-gradient)',
+                background: 'var(--accent-gradient)',
                 color: '#ffffff',
                 border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -322,21 +328,21 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.4rem',
-                fontWeight: 700,
-                fontSize: '1.2rem',
-                boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
+                gap: '0.35rem',
+                fontWeight: 800,
+                fontSize: '1.15rem',
+                boxShadow: '0 10px 28px rgba(249, 115, 22, 0.45)',
                 transition: 'transform 0.2s ease',
               }}
             >
-              <span style={{ fontSize: '2rem' }}>📍</span>
-              <span>{loading ? 'Mengecek GPS...' : 'CHECK IN'}</span>
+              <span style={{ fontSize: '1.8rem' }}>📍</span>
+              <span>{loading ? 'GPS...' : 'CHECK IN'}</span>
             </button>
           ) : !isCheckedOut ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Sudah Check-In pada:</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--success)' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontWeight: 500 }}>Sudah Check-In pada:</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--success)' }}>
                   {formatJam(todayAttendance.jam_checkin)}
                 </div>
               </div>
@@ -346,7 +352,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
                 size="lg"
                 loading={loading}
                 onClick={() => handleLocationAndSubmit(true, null)}
-                style={{ width: '200px' }}
+                style={{ width: '100%', maxWidth: '240px', borderRadius: 'var(--radius-pill)' }}
               >
                 🛑 CHECK OUT
               </Button>
@@ -355,18 +361,19 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
             <div
               style={{
                 textAlign: 'center',
-                padding: '1.5rem',
-                borderRadius: 'var(--radius-lg)',
-                background: 'var(--bg-surface-elevated)',
+                padding: '1.25rem 1.5rem',
+                borderRadius: 'var(--radius-card)',
+                background: 'var(--bg-surface-muted)',
                 border: '1px solid var(--border)',
+                width: '100%',
               }}
             >
-              <span style={{ fontSize: '2rem' }}>✅</span>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem', marginTop: '0.5rem' }}>
+              <span style={{ fontSize: '1.75rem' }}>✅</span>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--ink)', marginTop: '0.35rem' }}>
                 Absensi Hari Ini Lengkap
               </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                In: {formatJam(todayAttendance.jam_checkin)} | Out: {formatJam(todayAttendance.jam_checkout)}
+              <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginTop: '0.25rem', fontWeight: 500 }}>
+                In: {formatJam(todayAttendance.jam_checkin)} • Out: {formatJam(todayAttendance.jam_checkout)}
               </div>
             </div>
           )}

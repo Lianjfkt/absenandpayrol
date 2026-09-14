@@ -16,12 +16,12 @@ export default async function TambahKaryawanPage({ searchParams }) {
   }))
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
       <div>
-        <Link href="/karyawan" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+        <Link href="/karyawan" style={{ color: 'var(--ink-muted)', fontSize: '0.875rem', fontWeight: 600 }}>
           ← Kembali ke Daftar Karyawan
         </Link>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.5rem' }}>Tambah Karyawan Baru</h1>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: '0.5rem' }}>Tambah Karyawan Baru</h1>
       </div>
 
       <Card variant="default">
@@ -29,19 +29,20 @@ export default async function TambahKaryawanPage({ searchParams }) {
           {errorMsg && (
             <div
               style={{
-                padding: '0.75rem',
+                padding: '0.75rem 1rem',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--danger-bg)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
+                border: '1px solid rgba(220, 38, 38, 0.25)',
                 color: 'var(--danger)',
                 fontSize: '0.875rem',
+                fontWeight: 600,
               }}
             >
               {decodeURIComponent(errorMsg)}
             </div>
           )}
 
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)' }}>Akun Login Karyawan</h3>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>Akun Login Karyawan</h3>
           
           <Input
             label="Email Karyawan"
