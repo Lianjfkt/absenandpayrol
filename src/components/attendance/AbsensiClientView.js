@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { manualAttendanceOverrideAction, deleteAttendanceAction } from '@/actions/attendance'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
+import { FotoCheckinPreview } from '@/components/attendance/FotoCheckinPreview'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -267,6 +268,15 @@ export function AbsensiClientView({
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                    {/* Foto Check-In Thumbnail */}
+                    <FotoCheckinPreview
+                      fotoCheckin={att.foto_checkin}
+                      namaKaryawan={att.profiles?.nama || ''}
+                      tanggal={att.tanggal}
+                      jamCheckin={att.jam_checkin}
+                      accuracy={att.accuracy_meter}
+                    />
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {isOwner && att.profiles && (
@@ -291,11 +301,11 @@ export function AbsensiClientView({
                           </span>
                         )}
                       </div>
-
                       <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink-muted)', marginTop: '0.2rem' }}>
                         📅 {formatTanggal(att.tanggal)}
                       </div>
                     </div>
+                  </div>
 
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
                       <Badge variant={badgeVariant}>{att.status?.toUpperCase()}</Badge>

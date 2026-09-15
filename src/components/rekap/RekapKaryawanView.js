@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { downloadCSV } from '@/lib/utils/export'
 import { generateRekapKaryawanPDF } from '@/lib/utils/pdfGenerator'
+import { FotoCheckinPreview } from '@/components/attendance/FotoCheckinPreview'
 
 const BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -264,28 +265,37 @@ export function RekapKaryawanView({
                   padding: '0.85rem 1.25rem',
                 }}
               >
-                {/* Kiri: Tanggal + Catatan */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '120px' }}>
-                  <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: '0.9rem' }}>
-                    {formatTanggal(att.tanggal)}
-                  </div>
-                  {att.is_override && (
-                    <span style={{
-                      fontSize: '0.68rem', fontWeight: 700,
-                      background: '#FEF3C7', color: '#92400E',
-                      border: '1px solid #FCD34D',
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: 'var(--radius-pill)',
-                      width: 'fit-content',
-                    }}>
-                      ✎ Manual Owner
-                    </span>
-                  )}
-                  {att.catatan && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
-                      {att.catatan}
+                {/* Kiri: Foto + Tanggal + Catatan */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <FotoCheckinPreview
+                    fotoCheckin={att.foto_checkin}
+                    namaKaryawan={employee?.nama || ''}
+                    tanggal={att.tanggal}
+                    jamCheckin={att.jam_checkin}
+                    accuracy={att.accuracy_meter}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '120px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: '0.9rem' }}>
+                      {formatTanggal(att.tanggal)}
                     </div>
-                  )}
+                    {att.is_override && (
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 700,
+                        background: '#FEF3C7', color: '#92400E',
+                        border: '1px solid #FCD34D',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: 'var(--radius-pill)',
+                        width: 'fit-content',
+                      }}>
+                        ✎ Manual Owner
+                      </span>
+                    )}
+                    {att.catatan && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+                        {att.catatan}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Tengah: Jam masuk & pulang */}
