@@ -1,4 +1,6 @@
 import './globals.css'
+import { Suspense } from 'react'
+import { TopProgressBar } from '@/components/ui/TopProgressBar'
 
 export const metadata = {
   title: 'Sistem Absensi & Payroll Kedai',
@@ -25,7 +27,12 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
+        {children}
+      </body>
     </html>
   )
 }

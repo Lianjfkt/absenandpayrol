@@ -1,30 +1,40 @@
+'use client'
+
 import React from 'react'
+import { useFormStatus } from 'react-dom'
 
 export function Button({
   children,
-  variant = 'primary', // primary, secondary, danger, outline, ghost
+  variant = 'primary', // primary, secondary, danger, outline, ghost, success
   size = 'md',        // sm, md, lg
   className = '',
   disabled = false,
   loading = false,
+  loadingText = 'Memproses...',
   type = 'button',
   onClick,
   style = {},
   ...props
 }) {
+  const formStatus = useFormStatus()
+  const isPending = type === 'submit' ? formStatus.pending : false
+  const isBusy = loading || isPending
+
   const baseStyles = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: 600,
     borderRadius: 'var(--radius-pill)',
-    cursor: disabled || loading ? 'not-allowed' : 'pointer',
+    cursor: disabled || isBusy ? 'not-allowed' : 'pointer',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
     border: 'none',
     outline: 'none',
-    opacity: disabled ? 0.6 : 1,
+    opacity: disabled || isBusy ? 0.75 : 1,
     gap: '0.5rem',
     whiteSpace: 'nowrap',
+    position: 'relative',
+    userSelect: 'none',
   }
 
   const sizes = {
@@ -50,6 +60,11 @@ export function Button({
       color: '#ffffff',
       boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
     },
+    success: {
+      background: '#16A34A',
+      color: '#ffffff',
+      boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)',
+    },
     outline: {
       background: 'transparent',
       color: 'var(--ink)',
@@ -64,7 +79,7 @@ export function Button({
   return (
     <button
       type={type}
-      disabled={disabled || loading}
+      disabled={disabled || isBusy}
       onClick={onClick}
       style={{
         ...baseStyles,
@@ -72,20 +87,24 @@ export function Button({
         ...variants[variant],
         ...style,
       }}
-      className={className}
+      className={`${className} ${isBusy ? 'btn-shimmer' : 'btn-active-scale'}`}
       {...props}
     >
-      {loading ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{
-            width: '14px',
-            height: '14px',
-            border: '2px solid currentColor',
-            borderTopColor: 'transparent',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite'
-          }} />
-          Memuat...
+      {isBusy ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
+          <span
+            style={{
+              width: size === 'sm' ? '12px' : '16px',
+              height: size === 'sm' ? '12px' : '16px',
+              border: '2px solid currentColor',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              display: 'inline-block',
+              animation: 'spin 0.65s linear infinite',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ letterSpacing: '-0.01em', fontWeight: 600 }}>{loadingText}</span>
         </span>
       ) : (
         children

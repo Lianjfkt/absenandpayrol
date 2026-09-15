@@ -369,12 +369,42 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
       {/* Tombol Check In / Check Out Utama */}
       {!showCamera && !capturedPhoto && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
+          {loading && (
+            <div
+              className="fade-up"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.6rem 1.25rem',
+                borderRadius: 'var(--radius-pill)',
+                background: 'var(--accent-soft)',
+                color: 'var(--accent)',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid currentColor',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.65s linear infinite',
+                }}
+              />
+              <span>🛰️ Mengunci Lokasi GPS & Menyimpan Presensi...</span>
+            </div>
+          )}
+
           {!isCheckedIn ? (
             <button
               type="button"
               onClick={handleStartCheckIn}
               disabled={loading}
-              className="pulse-animation"
+              className={loading ? 'radar-processing' : 'pulse-animation'}
               style={{
                 width: '150px',
                 height: '150px',
@@ -391,11 +421,11 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
                 fontWeight: 800,
                 fontSize: '1.15rem',
                 boxShadow: '0 10px 28px rgba(249, 115, 22, 0.45)',
-                transition: 'transform 0.2s ease',
+                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
               <span style={{ fontSize: '1.8rem' }}>📍</span>
-              <span>{loading ? 'GPS...' : 'CHECK IN'}</span>
+              <span>{loading ? 'MEMPROSES...' : 'CHECK IN'}</span>
             </button>
           ) : !isCheckedOut ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
@@ -410,6 +440,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
                 variant="danger"
                 size="lg"
                 loading={loading}
+                loadingText="Memproses Check-Out..."
                 onClick={() => handleLocationAndSubmit(true, null)}
                 style={{ width: '100%', maxWidth: '240px', borderRadius: 'var(--radius-pill)' }}
               >
