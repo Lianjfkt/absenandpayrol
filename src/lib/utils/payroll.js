@@ -54,6 +54,11 @@ export function kalkulasiPayrollKaryawan({
     const dayStr = String(day).padStart(2, '0')
     const monthStr = String(periodeBulan).padStart(2, '0')
     const dateStr = `${periodeTahun}-${monthStr}-${dayStr}`
+
+    // Jika tanggal evaluasi sebelum tanggal karyawan resmi bergabung, lewati (bukan alpa/off)
+    if (employee.tanggal_mulai && dateStr < employee.tanggal_mulai) {
+      continue
+    }
     
     const tgl = new Date(periodeTahun, periodeBulan - 1, day)
     const dayOfWeek = tgl.getDay() // 0 = Minggu, 1 = Senin, ...
