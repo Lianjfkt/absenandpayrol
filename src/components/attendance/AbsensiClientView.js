@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { manualAttendanceOverrideAction, deleteAttendanceAction } from '@/actions/attendance'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
 import { Card } from '@/components/ui/Card'
@@ -17,6 +18,7 @@ export function AbsensiClientView({
   employees = [],
   settings = {},
 }) {
+  const router = useRouter()
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -134,9 +136,9 @@ export function AbsensiClientView({
       if (res?.error) {
         setErrorMsg(res.error)
       } else {
-        setSuccessMsg('Absensi manual berhasil disimpan!')
         setShowModal(false)
-        window.location.reload()
+        setSuccessMsg('Absensi manual berhasil disimpan!')
+        router.refresh()
       }
     } catch (err) {
       setErrorMsg(`Gagal menyimpan absensi: ${err.message}`)
@@ -155,7 +157,7 @@ export function AbsensiClientView({
       if (res?.error) {
         alert(res.error)
       } else {
-        window.location.reload()
+        router.refresh()
       }
     } catch (err) {
       alert(`Gagal menghapus: ${err.message}`)
