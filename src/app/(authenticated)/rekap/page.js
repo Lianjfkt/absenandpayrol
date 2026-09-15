@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
 import { RekapExportControls } from '@/components/rekap/RekapExportControls'
@@ -106,8 +107,26 @@ export default async function RekapLaporanPage({ searchParams }) {
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{p.profiles?.nama}</h3>
                     <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>{p.profiles?.jabatan || 'Staf Kedai'}</div>
                   </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
-                    {formatRupiah(p.total_gaji)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                      {formatRupiah(p.total_gaji)}
+                    </div>
+                    <Link
+                      href={`/rekap/${p.employee_id}?bulan=${currentMonth}&tahun=${currentYear}`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        padding: '0.4rem 0.9rem',
+                        background: 'var(--accent)',
+                        color: '#fff',
+                        borderRadius: 'var(--radius-pill)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Lihat Detail →
+                    </Link>
                   </div>
                 </div>
 

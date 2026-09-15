@@ -309,3 +309,170 @@ export function generateLaporanKeuanganPDF(payrolls = [], currentMonth, currentY
   const fileName = `Laporan_Keuangan_Kedai_${currentMonth}_${currentYear}.pdf`
   doc.save(fileName)
 }
+
+const BULAN_PDF = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+const STATUS_LABEL_PDF = {
+  hadir: 'Hadir',
+  telat: 'Telat',
+  off: 'Off / Alpa',
+  libur_mingguan: 'Libur Mingguan',
+}
+
+/**
+ * Generator PDF Rekap Absensi & Gaji Per Karyawan
+ */
+export function generateRekapKaryawanPDF(employee, payroll, attendances = [], currentMonth, currentYear, settings = {}) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  })
+
+  const namaKedai = settings.nama_kedai || 'TAICHAN & CHICKEN KA'
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const periodLabel = `${BULAN_PDF[currentMonth - 1]} ${currentYear}`
+
+  // 1. Header
+  doc.setFillColor(11, 15, 25)
+  doc.rect(0, 0, pageWidth, 34, 'F')
+  doc.setFillColor(16, 185, 129)
+  doc.rect(0, 34, pageWidth, 2.5, 'F')
+
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text(namaKedai.toUpperCase(), 14, 13)
+
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(203, 213, 225)
+  doc.text('REKAP ABSENSI & GAJI KARYAWAN', 14, 20)
+  doc.text(`Periode: ${periodLabel} | Cetak: ${new Date().toLocaleDateString('id-ID')}`, 14, 26)
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(16, 185, 129)
+  doc.text(`PERIODE: ${periodLabel}`, pageWidth - 14, 13, { align: 'right' })
+
+  // 2. Info Karyawan
+  doc.setTextColor(15, 23, 42)
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(14, 42, pageWidth - 28, 24, 2, 2, 'FD')
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text('DATA KARYAWAN', 18, 49)
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Nama       : ${employee.nama || '-'}`, 18, 56)
+  doc.text(`Jabatan   : ${employee.jabatan || 'Staf Kedai'}`, 18, 62)
+
+  const totalHadir = attendances.filter((a) => a.status === 'hadir').length
+  const totalTelat = attendances.filter((a) => a.status === 'telat').length
+  const totalOff = attendances.filter((a) => a.status === 'off').length
+  const totalLibur = attendances.filter((a) => a.status === 'libur_mingguan').length
+
+  doc.text(`Hadir: ${totalHadir} hr   Telat: ${totalTelat} hr   Off: ${totalOff} hr   Libur: ${totalLibur} hr`, pageWidth / 2 + 4, 56)
+
+  // 3. Ringkasan Gaji jika payroll ada
+  if (payroll) {
+    const gY = 72
+    const cardW = (pageWidth - 28 - 9) / 4
+
+    const cards = [
+      { label: 'GAJI POKOK', val: formatRupiah(payroll.gaji_pokok), rgb: [241, 245, 249] },
+      { label: 'POTONGAN', val: `-${formatRupiah((payroll.total_potongan_telat || 0) + (payroll.total_potongan_off || 0) + (payroll.total_potongan_kasbon || 0))}`, rgb: [254, 242, 242] },
+      { label: 'BONUS', val: `+${formatRupiah((payroll.total_bonus_libur || 0) + (payroll.total_bonus_manual || 0))}`, rgb: [240, 253, 244] },
+      { label: 'GAJI BERSIH', val: formatRupiah(payroll.total_gaji), rgb: [238, 242, 255] },
+    ]
+
+    cards.forEach((c, idx) => {
+      const x = 14 + idx * (cardW + 3)
+      doc.setFillColor(...c.rgb)
+      doc.roundedRect(x, gY, cardW, 14, 1.5, 1.5, 'F')
+      doc.setFontSize(6.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 116, 139)
+      doc.text(c.label, x + 3, gY + 5)
+      doc.setFontSize(8.5)
+      doc.setTextColor(15, 23, 42)
+      doc.text(c.val, x + 3, gY + 11)
+    })
+  }
+
+  // 4. Tabel log absensi harian
+  const tableData = attendances.map((a, i) => {
+    const masuk = a.jam_checkin
+      ? new Date(a.jam_checkin).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      : '-'
+    const pulang = a.jam_checkout
+      ? new Date(a.jam_checkout).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      : '-'
+    return [
+      i + 1,
+      formatTanggal(a.tanggal),
+      STATUS_LABEL_PDF[a.status] || a.status,
+      masuk,
+      pulang,
+      a.menit_telat > 0 ? `${a.menit_telat} mnt` : '-',
+      a.potongan_telat > 0 ? formatRupiah(a.potongan_telat) : '-',
+      a.is_override ? 'Manual' : 'GPS',
+      a.catatan || '-',
+    ]
+  })
+
+  const startY = payroll ? 92 : 72
+
+  autoTable(doc, {
+    startY,
+    margin: { left: 14, right: 14 },
+    head: [['No', 'Tanggal', 'Status', 'Masuk', 'Pulang', 'Telat', 'Potongan', 'Tipe', 'Catatan']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [11, 15, 25],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    styles: { fontSize: 7.5, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 34 },
+      2: { cellWidth: 22, fontStyle: 'bold' },
+      3: { cellWidth: 16, halign: 'center' },
+      4: { cellWidth: 16, halign: 'center' },
+      5: { cellWidth: 14, halign: 'center' },
+      6: { cellWidth: 22, halign: 'right' },
+      7: { cellWidth: 14, halign: 'center' },
+      8: { cellWidth: 'auto' },
+    },
+    didParseCell(data) {
+      if (data.section === 'body' && data.column.index === 2) {
+        const status = attendances[data.row.index]?.status
+        if (status === 'hadir') data.cell.styles.textColor = [21, 128, 61]
+        else if (status === 'telat') data.cell.styles.textColor = [146, 64, 14]
+        else if (status === 'off') data.cell.styles.textColor = [185, 28, 28]
+        else if (status === 'libur_mingguan') data.cell.styles.textColor = [29, 78, 216]
+      }
+    },
+  })
+
+  // 5. Footer
+  doc.setFontSize(7.5)
+  doc.setTextColor(148, 163, 184)
+  doc.text(
+    'Dokumen ini dicetak otomatis oleh Sistem Absensi & Payroll Kedai.',
+    pageWidth / 2,
+    doc.internal.pageSize.getHeight() - 10,
+    { align: 'center' }
+  )
+
+  const fileName = `Rekap_${(employee.nama || 'Karyawan').replace(/\s+/g, '_')}_${currentMonth}_${currentYear}.pdf`
+  doc.save(fileName)
+}
