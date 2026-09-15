@@ -2,30 +2,49 @@ import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '../constants.js'
 
 /**
  * Menghitung start date dan end date periode payroll untuk satu karyawan.
- * Periode dihitung selama 1 bulan penuh mulai dari tanggal bergabung (tanggal_mulai).
  *
- * Contoh: karyawan bergabung tgl 15, periode Oktober 2025
- *   → startDate: 2025-10-15
- *   → endDate:   2025-11-14
+ * `periodeBulan` adalah bulan di mana GAJIAN jatuh (bulan berakhirnya periode).
  *
- * Fallback ke tgl 1 jika tanggal_mulai tidak ada.
+ * Contoh: karyawan bergabung tgl 18, periodeBulan=9 (September), periodeTahun=2026
+ *   -> startDate: 2026-08-18  (tgl bergabung di bulan sebelumnya)
+ *   -> endDate:   2026-09-17  (sehari sebelum tgl bergabung di bulan gajian)
  *
- * @param {object} employee - object profil karyawan (butuh: tanggal_mulai)
- * @param {number} periodeBulan - bulan di mana periode MULAI (1-12)
- * @param {number} periodeTahun - tahun di mana periode mulai
+ * Karyawan bergabung tgl 1 (atau tanpa tanggal_mulai):
+ *   -> periode tetap = 1 s/d akhir bulan (kalender normal)
+ *
+ * @param {object} employee  - profil karyawan (butuh: tanggal_mulai)
+ * @param {number} periodeBulan - bulan GAJIAN / bulan berakhir periode (1-12)
+ * @param {number} periodeTahun - tahun gajian
  * @returns {{ startDate: string, endDate: string, tglGajian: number }}
  */
 export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
-  const joinDate = employee?.tanggal_mulai ? new Date(employee.tanggal_mulai) : null
-  const tglGajian = joinDate ? joinDate.getDate() : 1
+  // Parse hari dari string "YYYY-MM-DD" langsung — aman dari timezone shift
+  const tanggalMulai = employee?.tanggal_mulai || null
+  let tglGajian = 1
+  if (tanggalMulai) {
+    tglGajian = parseInt(tanggalMulai.split('-')[2], 10)
+  }
 
-  const startDate = `${periodeTahun}-${String(periodeBulan).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
+  const mm = String(periodeBulan).padStart(2, '0')
 
-  // End date = 1 hari sebelum tanggal gajian di bulan berikutnya
-  const nextMonthYear = periodeBulan === 12 ? periodeTahun + 1 : periodeTahun
-  const nextMonth = periodeBulan === 12 ? 1 : periodeBulan + 1
-  const endDateObj = new Date(nextMonthYear, nextMonth - 1, tglGajian - 1)
-  const endDate = endDateObj.toISOString().split('T')[0]
+  if (tglGajian === 1) {
+    // Periode kalender normal: 1 s/d akhir bulan
+    const lastDay = new Date(periodeTahun, periodeBulan, 0).getDate()
+    return {
+      startDate: `${periodeTahun}-${mm}-01`,
+      endDate: `${periodeTahun}-${mm}-${String(lastDay).padStart(2, '0')}`,
+      tglGajian,
+    }
+  }
+
+  // endDate   = (tglGajian - 1) di bulan gajian
+  // startDate = tglGajian di bulan SEBELUMNYA
+  const endDay = String(tglGajian - 1).padStart(2, '0')
+  const endDate = `${periodeTahun}-${mm}-${endDay}`
+
+  const prevMonth = periodeBulan === 1 ? 12 : periodeBulan - 1
+  const prevYear  = periodeBulan === 1 ? periodeTahun - 1 : periodeTahun
+  const startDate = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
 
   return { startDate, endDate, tglGajian }
 }
@@ -70,18 +89,18 @@ export function kalkulasiPayrollKaryawan({
   })
 
   // Iterasi setiap hari dalam range startDate – maxEvalDate
-  const cursor = new Date(startDate + 'T00:00:00')
-  const maxDate = new Date(maxEvalDate + 'T00:00:00')
+  const cursor = new Date(startDate + 'T00:00:00Z')
+  const maxDate = new Date(maxEvalDate + 'T00:00:00Z')
 
   while (cursor <= maxDate) {
     const dateStr = cursor.toISOString().split('T')[0]
 
     if (employee.tanggal_mulai && dateStr < employee.tanggal_mulai) {
-      cursor.setDate(cursor.getDate() + 1)
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
       continue
     }
 
-    const dayOfWeek = cursor.getDay()
+    const dayOfWeek = cursor.getUTCDay()
     const isWeeklyOff = dayOfWeek === employee.hari_libur
 
     const att = attendanceMap.get(dateStr)
@@ -111,16 +130,16 @@ export function kalkulasiPayrollKaryawan({
       }
     }
 
-    cursor.setDate(cursor.getDate() + 1)
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
 
   const totalPotonganOff = totalHariOff * potonganOffRate
   const totalBonusLibur = totalHariLiburMasuk * bonusMasukLiburRate
 
-  // Bonus difilter berdasarkan range tanggal periode (bukan bulan kalender)
+  // Bonus difilter berdasarkan range tanggal periode
   const totalBonusManual = bonuses
     .filter((b) => {
-      if (!b.tanggal) return true // backward compat
+      if (!b.tanggal) return true
       return b.tanggal >= startDate && b.tanggal <= endDate
     })
     .reduce((acc, b) => acc + Number(b.nominal || 0), 0)
