@@ -51,7 +51,6 @@ export default async function DashboardPage() {
   let allEmployees = []
   let todayAllAttendance = []
   let ownerMonthlyAttendance = []
-  let ownerMonthlyLeaves = []
   let activeLoans = []
 
   if (isOwner) {
@@ -71,11 +70,6 @@ export default async function DashboardPage() {
       .select('*')
       .gte('tanggal', currentMonthStart)
 
-    const { data: mLeavesData } = await supabase
-      .from('leaves')
-      .select('*')
-      .gte('tanggal_selesai', currentMonthStart)
-
     const { data: loansData } = await supabase
       .from('loans')
       .select('*')
@@ -84,7 +78,6 @@ export default async function DashboardPage() {
     allEmployees = empData || []
     todayAllAttendance = todayAttData || []
     ownerMonthlyAttendance = mAttData || []
-    ownerMonthlyLeaves = mLeavesData || []
     activeLoans = loansData || []
   }
 
@@ -188,7 +181,6 @@ export default async function DashboardPage() {
           <OwnerAnalyticsView
             employees={allEmployees}
             monthlyAttendance={ownerMonthlyAttendance}
-            monthlyLeaves={ownerMonthlyLeaves}
             activeLoans={activeLoans}
           />
 

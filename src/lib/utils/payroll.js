@@ -21,14 +21,10 @@ export function kalkulasiPayrollKaryawan({
   let totalHariTelat = 0
   let totalHariOff = 0
   let totalHariLiburMasuk = 0
-  let totalHariIzin = 0
   let totalPotonganTelat = 0
 
   const bonusMasukLiburRate = settings.bonus_masuk_libur ?? 50000
   const potonganOffRate = settings.potongan_off ?? 50000
-
-  // Filter pengajuan izin yang sudah disetujui (approved)
-  const approvedLeaves = leaves.filter((l) => l.status === 'approved')
 
   // Tentukan jumlah hari dalam bulan periode
   const daysInMonth = new Date(periodeTahun, periodeBulan, 0).getDate()
@@ -77,7 +73,7 @@ export function kalkulasiPayrollKaryawan({
         }
       }
     } else {
-      // Hari Kerja Normal Karyawan
+      // Hari Kerja Normal Karyawan: jika tidak hadir/masuk -> potong Rp 50.000 (totalHariOff)
       if (att) {
         if (att.status === ATTENDANCE_STATUS.HADIR) {
           totalHariHadir++
@@ -88,17 +84,8 @@ export function kalkulasiPayrollKaryawan({
           totalHariOff++
         }
       } else {
-        // Tidak ada record absensi: Cek apakah ada izin resmi yang disetujui
-        const isApprovedLeave = approvedLeaves.some(
-          (l) => l.tanggal_mulai <= dateStr && l.tanggal_selesai >= dateStr
-        )
-
-        if (isApprovedLeave) {
-          totalHariIzin++
-        } else {
-          // Bolos / Alpa tanpa izin resmi
-          totalHariOff++
-        }
+        // Tidak ada record absensi pada hari kerja -> Otomatis Off/Alpa
+        totalHariOff++
       }
     }
   }
@@ -129,7 +116,7 @@ export function kalkulasiPayrollKaryawan({
     total_hari_hadir: totalHariHadir,
     total_hari_telat: totalHariTelat,
     total_hari_off: totalHariOff,
-    total_hari_izin: totalHariIzin,
+    total_hari_izin: 0,
     total_hari_libur_masuk: totalHariLiburMasuk,
     total_potongan_telat: totalPotonganTelat,
     total_potongan_off: totalPotonganOff,

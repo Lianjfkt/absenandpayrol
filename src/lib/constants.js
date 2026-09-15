@@ -73,7 +73,6 @@ export const OWNER_MENU = [
   { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
   { label: 'Karyawan', href: '/karyawan', icon: 'people' },
   { label: 'Absensi', href: '/absensi', icon: 'checklist' },
-  { label: 'Izin & Sakit', href: '/izin', icon: 'event_busy' },
   { label: 'Kasbon', href: '/kasbon', icon: 'account_balance_wallet' },
   { label: 'Payroll', href: '/payroll', icon: 'payments' },
   { label: 'Rekap', href: '/rekap', icon: 'assessment' },
@@ -83,7 +82,6 @@ export const OWNER_MENU = [
 export const KARYAWAN_MENU = [
   { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
   { label: 'Absensi', href: '/absensi', icon: 'checklist' },
-  { label: 'Izin & Sakit', href: '/izin', icon: 'event_busy' },
   { label: 'Slip Gaji', href: '/slip-gaji', icon: 'receipt' },
 ]
 

@@ -50,15 +50,6 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       .gte('tanggal', startDateStr)
       .lte('tanggal', endDateStr)
 
-    // Ambil izin yang disetujui (approved) pada periode bulan ini
-    const { data: leaves } = await supabase
-      .from('leaves')
-      .select('*')
-      .eq('employee_id', emp.id)
-      .eq('status', 'approved')
-      .lte('tanggal_mulai', endDateStr)
-      .gte('tanggal_selesai', startDateStr)
-
     // Ambil bonus manual bulan ini
     const { data: bonuses } = await supabase
       .from('bonus')
@@ -90,7 +81,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
       attendances: attendances || [],
       bonuses: bonuses || [],
       loans: activeLoans || [],
-      leaves: leaves || [],
+      leaves: [],
       settings: currentSettings,
       adjustment: adj,
       periodeBulan,

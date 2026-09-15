@@ -7,20 +7,17 @@ import { formatRupiah } from '@/lib/constants'
 export function OwnerAnalyticsView({
   employees = [],
   monthlyAttendance = [],
-  monthlyLeaves = [],
   activeLoans = [],
 }) {
   // 1. Hitung total metrik kehadiran bulan berjalan
   const totalHadir = monthlyAttendance.filter((a) => a.status === 'hadir').length
   const totalTelat = monthlyAttendance.filter((a) => a.status === 'telat').length
   const totalOff = monthlyAttendance.filter((a) => a.status === 'off').length
-  const totalIzin = monthlyLeaves.filter((l) => l.status === 'approved').length
-  const totalEvents = Math.max(1, totalHadir + totalTelat + totalOff + totalIzin)
+  const totalEvents = Math.max(1, totalHadir + totalTelat + totalOff)
 
   const pctHadir = Math.round((totalHadir / totalEvents) * 100)
   const pctTelat = Math.round((totalTelat / totalEvents) * 100)
   const pctOff = Math.round((totalOff / totalEvents) * 100)
-  const pctIzin = Math.round((totalIzin / totalEvents) * 100)
 
   // 2. Ranking Staf berdasarkan Kedisiplinan
   const staffStats = employees.map((emp) => {
@@ -83,12 +80,11 @@ export function OwnerAnalyticsView({
         >
           <div style={{ width: `${pctHadir}%`, background: '#10B981', transition: 'width 0.5s ease' }} title={`Hadir: ${pctHadir}%`} />
           <div style={{ width: `${pctTelat}%`, background: '#F59E0B', transition: 'width 0.5s ease' }} title={`Telat: ${pctTelat}%`} />
-          <div style={{ width: `${pctIzin}%`, background: '#3B82F6', transition: 'width 0.5s ease' }} title={`Izin: ${pctIzin}%`} />
-          <div style={{ width: `${pctOff}%`, background: '#EF4444', transition: 'width 0.5s ease' }} title={`Off: ${pctOff}%`} />
+          <div style={{ width: `${pctOff}%`, background: '#EF4444', transition: 'width 0.5s ease' }} title={`Off / Alpa: ${pctOff}%`} />
         </div>
 
         {/* Legend */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10B981' }} />
             <div>
@@ -106,17 +102,9 @@ export function OwnerAnalyticsView({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6' }} />
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)' }}>Izin / Sakit</div>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--ink)' }}>{totalIzin} ({pctIzin}%)</strong>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#EF4444' }} />
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)' }}>Off / Alpa</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)' }}>Off / Alpa (-50rb)</div>
               <strong style={{ fontSize: '0.9rem', color: 'var(--ink)' }}>{totalOff} ({pctOff}%)</strong>
             </div>
           </div>
