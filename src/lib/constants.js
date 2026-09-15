@@ -116,10 +116,14 @@ export function formatJam(dateStr) {
 
 // === WhatsApp Slip Text Generator ===
 export function generateWhatsAppSlipText(namaKaryawan, slip) {
+  const joinDate = slip.profiles?.tanggal_mulai
+  const tglGajian = joinDate ? new Date(joinDate).getDate() : null
+
   const lines = [
     `*SLIP GAJI KARYAWAN - TAICHAN & CHICKEN KA*`,
     `Periode: Bulan ${slip.periode_bulan}/${slip.periode_tahun}`,
     `Nama: ${namaKaryawan}`,
+    ...(tglGajian ? [`Jadwal Gajian: Setiap tgl ${tglGajian}`] : []),
     `----------------------------------------`,
     `• Gaji Pokok: ${formatRupiah(slip.gaji_pokok)}`,
   ]

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { formatRupiah } from '@/lib/constants'
+import { formatRupiah, formatTanggal } from '@/lib/constants'
 import { SlipActions } from '@/components/payroll/SlipActions'
 
 export default async function SlipGajiKaryawanPage() {
@@ -13,7 +13,7 @@ export default async function SlipGajiKaryawanPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('nama')
+    .select('nama, jabatan, tanggal_mulai')
     .eq('id', user.id)
     .single()
 
@@ -26,6 +26,8 @@ export default async function SlipGajiKaryawanPage() {
     .order('periode_tahun', { ascending: false })
     .order('periode_bulan', { ascending: false })
 
+  const tglGajian = profile?.tanggal_mulai ? new Date(profile.tanggal_mulai).getDate() : 1
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', maxWidth: '720px', margin: '0 auto' }}>
       <div>
@@ -36,6 +38,20 @@ export default async function SlipGajiKaryawanPage() {
           Rincian pendapatan bersih dan transparansi potongan bulanan Anda.
         </p>
       </div>
+
+      {/* Info Tanggal Gajian Karyawan */}
+      <Card variant="accent-soft" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', padding: '1rem 1.25rem' }}>
+        <div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>Tanggal Bergabung:</div>
+          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{profile?.tanggal_mulai ? formatTanggal(profile.tanggal_mulai) : '-'}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>Jadwal Gajian Rutin:</div>
+          <Badge variant="accent" size="lg">
+            Setiap tanggal {tglGajian}
+          </Badge>
+        </div>
+      </Card>
 
       {slipList?.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: '3rem 1rem' }}>

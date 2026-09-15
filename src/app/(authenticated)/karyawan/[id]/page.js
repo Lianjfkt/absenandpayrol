@@ -75,6 +75,17 @@ export default async function EditKaryawanPage({ params }) {
           />
 
           <Input
+            label="Tanggal Bergabung (Tanggal Gajian)"
+            name="tanggal_mulai"
+            type="date"
+            defaultValue={employee.tanggal_mulai || ''}
+            required
+          />
+          <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', marginTop: '-0.75rem', marginBottom: '0.25rem' }}>
+            💡 Tanggal ini digunakan sebagai tanggal/jadwal gajian rutin karyawan setiap bulannya.
+          </div>
+
+          <Input
             label="Gaji Pokok (Rp / Bulan)"
             name="gaji_pokok"
             type="number"

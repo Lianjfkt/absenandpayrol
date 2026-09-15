@@ -28,6 +28,7 @@ export async function createEmployeeAction(formData) {
   const jabatan = formData.get('jabatan')
   const gaji_pokok = parseInt(formData.get('gaji_pokok') || '0', 10)
   const hari_libur = parseInt(formData.get('hari_libur') || '0', 10)
+  const tanggal_mulai = formData.get('tanggal_mulai') || new Date().toISOString().split('T')[0]
 
   if (!email || !password || !nama) {
     redirect('/karyawan/tambah?error=Nama,%20Email,%20dan%20Password%20wajib%20diisi')
@@ -62,6 +63,7 @@ export async function createEmployeeAction(formData) {
     no_hp,
     alamat,
     jabatan,
+    tanggal_mulai,
     gaji_pokok,
     hari_libur,
     status_aktif: true,
@@ -94,6 +96,7 @@ export async function updateEmployeeAction(id, formData) {
   const no_hp = formData.get('no_hp')
   const alamat = formData.get('alamat')
   const jabatan = formData.get('jabatan')
+  const tanggal_mulai = formData.get('tanggal_mulai') || new Date().toISOString().split('T')[0]
   const gaji_pokok = parseInt(formData.get('gaji_pokok') || '0', 10)
   const hari_libur = parseInt(formData.get('hari_libur') || '0', 10)
   const status_aktif = formData.get('status_aktif') === 'true'
@@ -105,6 +108,7 @@ export async function updateEmployeeAction(id, formData) {
       no_hp,
       alamat,
       jabatan,
+      tanggal_mulai,
       gaji_pokok,
       hari_libur,
       status_aktif,

@@ -24,7 +24,7 @@ export default async function PayrollPage({ searchParams }) {
   // Ambil data payroll periode terpilih
   const { data: payrollList } = await supabase
     .from('payroll')
-    .select('*, profiles:employee_id(nama, jabatan)')
+    .select('*, profiles:employee_id(nama, jabatan, tanggal_mulai)')
     .eq('periode_bulan', currentMonth)
     .eq('periode_tahun', currentYear)
     .order('created_at', { ascending: true })
@@ -85,14 +85,15 @@ export default async function PayrollPage({ searchParams }) {
               item.id,
               item.status_pembayaran === 'sudah_dibayar' ? 'belum_dibayar' : 'sudah_dibayar'
             )
+            const tglGajian = item.profiles?.tanggal_mulai ? new Date(item.profiles.tanggal_mulai).getDate() : 1
 
             return (
               <Card key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{item.profiles?.nama}</h3>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
-                      {item.profiles?.jabatan || 'Staf Operasional'}
+                    <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
+                      {item.profiles?.jabatan || 'Staf Operasional'} • <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Tgl Gajian: Setiap tgl {tglGajian}</span>
                     </div>
                   </div>
 

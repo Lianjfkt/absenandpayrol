@@ -66,6 +66,20 @@ export default async function DetailPayrollPage({ params }) {
           </div>
         </div>
 
+        {/* Info Profil Singkat */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', background: 'var(--bg-surface-muted)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-input)', fontSize: '0.85rem', border: '1px solid var(--border)' }}>
+          <div>
+            <span style={{ color: 'var(--ink-muted)' }}>Tgl Bergabung: </span>
+            <strong>{payroll.profiles?.tanggal_mulai ? formatTanggal(payroll.profiles.tanggal_mulai) : '-'}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--ink-muted)' }}>Jadwal Gajian: </span>
+            <strong style={{ color: 'var(--accent)' }}>
+              Setiap tgl {payroll.profiles?.tanggal_mulai ? new Date(payroll.profiles.tanggal_mulai).getDate() : 1}
+            </strong>
+          </div>
+        </div>
+
         {/* Tabel Komponen */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.925rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>

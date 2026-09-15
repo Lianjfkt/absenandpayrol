@@ -47,20 +47,24 @@ export function generateSlipGajiPDF(payroll, employee, settings = {}) {
   // 2. Info Karyawan Box
   doc.setTextColor(15, 23, 42)
   doc.setFillColor(248, 250, 252)
-  doc.roundedRect(14, 46, pageWidth - 28, 28, 2, 2, 'FD')
+  doc.roundedRect(14, 46, pageWidth - 28, 34, 2, 2, 'FD')
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('DATA PENERIMA UPAH', 18, 53)
 
+  const empJoinDate = employee.tanggal_mulai || payroll.profiles?.tanggal_mulai
+  const tglGajianNum = empJoinDate ? new Date(empJoinDate).getDate() : 1
+
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.text(`Nama Lengkap   : ${employee.nama || payroll.profiles?.nama || '-'}`, 18, 60)
   doc.text(`Jabatan Staf       : ${employee.jabatan || payroll.profiles?.jabatan || 'Staf Operasional'}`, 18, 66)
+  doc.text(`Tgl Bergabung   : ${empJoinDate ? formatTanggal(empJoinDate) : '-'} (Gajian: Setiap tgl ${tglGajianNum})`, 18, 72)
 
   const statusBayarText = payroll.status_pembayaran === 'sudah_dibayar' ? 'LUNAS (SUDAH DIBAYAR)' : 'DRAFT (BELUM DIBAYAR)'
-  doc.text(`Status Gaji          : ${statusBayarText}`, pageWidth / 2 + 10, 60)
-  doc.text(`Tanggal Dibayar : ${payroll.tanggal_dibayar ? formatTanggal(payroll.tanggal_dibayar) : '-'}`, pageWidth / 2 + 10, 66)
+  doc.text(`Status Gaji          : ${statusBayarText}`, pageWidth / 2 + 5, 60)
+  doc.text(`Tanggal Dibayar : ${payroll.tanggal_dibayar ? formatTanggal(payroll.tanggal_dibayar) : '-'}`, pageWidth / 2 + 5, 66)
 
   // 3. Rincian Penerimaan & Potongan via Tabel autoTable
   const earnings = [
