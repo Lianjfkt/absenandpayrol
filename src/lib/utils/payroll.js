@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
+import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '../constants.js'
 
 /**
  * Menghitung rekap payroll karyawan untuk 1 periode bulan & tahun tertentu.
@@ -121,7 +121,6 @@ export function kalkulasiPayrollKaryawan({
     total_hari_hadir: totalHariHadir,
     total_hari_telat: totalHariTelat,
     total_hari_off: totalHariOff,
-    total_hari_izin: 0,
     total_hari_libur_masuk: totalHariLiburMasuk,
     total_potongan_telat: totalPotonganTelat,
     total_potongan_off: totalPotonganOff,

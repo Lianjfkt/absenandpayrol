@@ -22,10 +22,10 @@ export default async function RekapLaporanPage({ searchParams }) {
   const db = getDbClient(supabase)
 
   // Ambil data payroll dan setting kedai secara paralel
-  const [{ data: payrolls }, { data: settings }] = await Promise.all([
+  const [{ data: rawPayrolls }, { data: settings }] = await Promise.all([
     db
       .from('payroll')
-      .select('*, profiles:employee_id(nama, jabatan)')
+      .select('*, profiles:employee_id(nama, jabatan, status_aktif, role)')
       .eq('periode_bulan', currentMonth)
       .eq('periode_tahun', currentYear),
     db
@@ -34,6 +34,12 @@ export default async function RekapLaporanPage({ searchParams }) {
       .eq('id', 1)
       .maybeSingle(),
   ])
+
+  const payrolls = (rawPayrolls || []).filter((p) => {
+    if (p.profiles?.role === 'owner') return false
+    if (p.profiles?.status_aktif === false && p.status_pembayaran !== 'sudah_dibayar') return false
+    return true
+  })
 
   const totalPengeluaran = payrolls?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
   const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off + (p.total_potongan_kasbon || 0)), 0) || 0

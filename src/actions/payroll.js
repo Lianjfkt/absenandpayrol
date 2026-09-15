@@ -41,6 +41,22 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
     (p) => p.role !== 'owner' && p.status_aktif !== false
   )
 
+  const inactiveEmployees = allProfiles.filter(
+    (p) => p.role === 'owner' || p.status_aktif === false
+  )
+
+  // Bersihkan draft payroll untuk karyawan yang sudah dinonaktifkan
+  if (inactiveEmployees.length > 0) {
+    const inactiveIds = inactiveEmployees.map((e) => e.id)
+    await db
+      .from('payroll')
+      .delete()
+      .in('employee_id', inactiveIds)
+      .eq('periode_bulan', periodeBulan)
+      .eq('periode_tahun', periodeTahun)
+      .eq('status_pembayaran', 'belum_dibayar')
+  }
+
   if (employees.length === 0) {
     return { error: 'Tidak ada karyawan aktif yang ditemukan.' }
   }

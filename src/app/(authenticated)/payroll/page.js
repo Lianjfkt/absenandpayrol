@@ -25,12 +25,18 @@ export default async function PayrollPage({ searchParams }) {
   const db = getDbClient(supabase)
 
   // Ambil data payroll periode terpilih
-  const { data: payrollList } = await db
+  const { data: rawPayrollList } = await db
     .from('payroll')
-    .select('*, profiles:employee_id(nama, jabatan, tanggal_mulai)')
+    .select('*, profiles:employee_id(nama, jabatan, tanggal_mulai, status_aktif, role)')
     .eq('periode_bulan', currentMonth)
     .eq('periode_tahun', currentYear)
     .order('created_at', { ascending: true })
+
+  const payrollList = (rawPayrollList || []).filter((item) => {
+    if (item.profiles?.role === 'owner') return false
+    if (item.profiles?.status_aktif === false && item.status_pembayaran !== 'sudah_dibayar') return false
+    return true
+  })
 
   const totalPayrollSemua = payrollList?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
 
