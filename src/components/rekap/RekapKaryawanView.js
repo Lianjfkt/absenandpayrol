@@ -57,6 +57,8 @@ export function RekapKaryawanView({
   settings = {},
   currentMonth,
   currentYear,
+  periodStart,
+  periodEnd,
 }) {
   const router = useRouter()
 
@@ -70,7 +72,7 @@ export function RekapKaryawanView({
   }
 
   const handleExportPDF = () => {
-    generateRekapKaryawanPDF(employee, payroll, attendances, currentMonth, currentYear, settings)
+    generateRekapKaryawanPDF(employee, payroll, attendances, currentMonth, currentYear, settings, periodStart, periodEnd)
   }
 
   const handleExportCSV = () => {
@@ -94,7 +96,10 @@ export function RekapKaryawanView({
   const totalLibur = attendances.filter((a) => a.status === ATTENDANCE_STATUS.LIBUR_MINGGUAN).length
   const totalPotonganTelat = attendances.reduce((s, a) => s + (a.potongan_telat || 0), 0)
 
-  const periodLabel = `${BULAN[currentMonth - 1]} ${currentYear}`
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const periodLabel = periodStart && periodEnd
+    ? `${fmtDate(periodStart)} – ${fmtDate(periodEnd)}`
+    : `${BULAN[currentMonth - 1]} ${currentYear}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>

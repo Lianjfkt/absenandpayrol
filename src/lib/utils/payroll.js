@@ -1,8 +1,39 @@
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '../constants.js'
 
 /**
- * Menghitung rekap payroll karyawan untuk 1 periode bulan & tahun tertentu.
- * Termasuk deteksi otomatis hari kerja yang bolos (Alpa / Off tanpa izin).
+ * Menghitung start date dan end date periode payroll untuk satu karyawan.
+ * Periode dihitung selama 1 bulan penuh mulai dari tanggal bergabung (tanggal_mulai).
+ *
+ * Contoh: karyawan bergabung tgl 15, periode Oktober 2025
+ *   → startDate: 2025-10-15
+ *   → endDate:   2025-11-14
+ *
+ * Fallback ke tgl 1 jika tanggal_mulai tidak ada.
+ *
+ * @param {object} employee - object profil karyawan (butuh: tanggal_mulai)
+ * @param {number} periodeBulan - bulan di mana periode MULAI (1-12)
+ * @param {number} periodeTahun - tahun di mana periode mulai
+ * @returns {{ startDate: string, endDate: string, tglGajian: number }}
+ */
+export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
+  const joinDate = employee?.tanggal_mulai ? new Date(employee.tanggal_mulai) : null
+  const tglGajian = joinDate ? joinDate.getDate() : 1
+
+  const startDate = `${periodeTahun}-${String(periodeBulan).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
+
+  // End date = 1 hari sebelum tanggal gajian di bulan berikutnya
+  const nextMonthYear = periodeBulan === 12 ? periodeTahun + 1 : periodeTahun
+  const nextMonth = periodeBulan === 12 ? 1 : periodeBulan + 1
+  const endDateObj = new Date(nextMonthYear, nextMonth - 1, tglGajian - 1)
+  const endDate = endDateObj.toISOString().split('T')[0]
+
+  return { startDate, endDate, tglGajian }
+}
+
+/**
+ * Menghitung rekap payroll karyawan untuk 1 periode berdasarkan tanggal bergabung.
+ * Periode = startDate s/d endDate (bukan 1 – akhir bulan kalender).
+ *
  * Formula dasar:
  * Total Gaji = Gaji Pokok + Total Bonus - Total Potongan + Adjustment
  */
@@ -26,22 +57,11 @@ export function kalkulasiPayrollKaryawan({
   const bonusMasukLiburRate = settings.bonus_masuk_libur ?? 50000
   const potonganOffRate = settings.potongan_off ?? 50000
 
-  // Tentukan jumlah hari dalam bulan periode
-  const daysInMonth = new Date(periodeTahun, periodeBulan, 0).getDate()
-  
-  // Tentukan batas hari evaluasi (jika bulan berjalan, evaluasi sampai hari ini; jika bulan lalu, evaluasi full sebulan)
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1
-  const todayDate = now.getDate()
+  const { startDate, endDate } = getPayrollPeriod(employee, periodeBulan, periodeTahun)
 
-  let maxEvalDay = daysInMonth
-  if (periodeTahun === currentYear && periodeBulan === currentMonth) {
-    maxEvalDay = Math.min(daysInMonth, todayDate)
-  } else if (periodeTahun > currentYear || (periodeTahun === currentYear && periodeBulan > currentMonth)) {
-    // Periode masa depan
-    maxEvalDay = 0
-  }
+  // Batas evaluasi: jika periode masih berjalan, evaluasi sampai hari ini
+  const todayStr = new Date().toISOString().split('T')[0]
+  const maxEvalDate = endDate < todayStr ? endDate : todayStr
 
   // Map attendance berdasarkan tanggal untuk akses O(1)
   const attendanceMap = new Map()
@@ -49,25 +69,24 @@ export function kalkulasiPayrollKaryawan({
     attendanceMap.set(att.tanggal, att)
   })
 
-  // 1. Evaluasi hari demi hari dalam periode
-  for (let day = 1; day <= maxEvalDay; day++) {
-    const dayStr = String(day).padStart(2, '0')
-    const monthStr = String(periodeBulan).padStart(2, '0')
-    const dateStr = `${periodeTahun}-${monthStr}-${dayStr}`
+  // Iterasi setiap hari dalam range startDate – maxEvalDate
+  const cursor = new Date(startDate + 'T00:00:00')
+  const maxDate = new Date(maxEvalDate + 'T00:00:00')
 
-    // Jika tanggal evaluasi sebelum tanggal karyawan resmi bergabung, lewati (bukan alpa/off)
+  while (cursor <= maxDate) {
+    const dateStr = cursor.toISOString().split('T')[0]
+
     if (employee.tanggal_mulai && dateStr < employee.tanggal_mulai) {
+      cursor.setDate(cursor.getDate() + 1)
       continue
     }
-    
-    const tgl = new Date(periodeTahun, periodeBulan - 1, day)
-    const dayOfWeek = tgl.getDay() // 0 = Minggu, 1 = Senin, ...
+
+    const dayOfWeek = cursor.getDay()
     const isWeeklyOff = dayOfWeek === employee.hari_libur
 
     const att = attendanceMap.get(dateStr)
 
     if (isWeeklyOff) {
-      // Hari Libur Mingguan Karyawan
       if (att && (att.status === ATTENDANCE_STATUS.HADIR || att.status === ATTENDANCE_STATUS.TELAT)) {
         totalHariLiburMasuk++
         if (att.status === ATTENDANCE_STATUS.TELAT) {
@@ -78,7 +97,6 @@ export function kalkulasiPayrollKaryawan({
         }
       }
     } else {
-      // Hari Kerja Normal Karyawan: jika tidak hadir/masuk -> potong Rp 50.000 (totalHariOff)
       if (att) {
         if (att.status === ATTENDANCE_STATUS.HADIR) {
           totalHariHadir++
@@ -89,18 +107,24 @@ export function kalkulasiPayrollKaryawan({
           totalHariOff++
         }
       } else {
-        // Tidak ada record absensi pada hari kerja -> Otomatis Off/Alpa
         totalHariOff++
       }
     }
+
+    cursor.setDate(cursor.getDate() + 1)
   }
 
-  // 2. Hitung komponen potongan & bonus
   const totalPotonganOff = totalHariOff * potonganOffRate
   const totalBonusLibur = totalHariLiburMasuk * bonusMasukLiburRate
-  const totalBonusManual = bonuses.reduce((acc, b) => acc + Number(b.nominal || 0), 0)
 
-  // Hitung cicilan kasbon aktif
+  // Bonus difilter berdasarkan range tanggal periode (bukan bulan kalender)
+  const totalBonusManual = bonuses
+    .filter((b) => {
+      if (!b.tanggal) return true // backward compat
+      return b.tanggal >= startDate && b.tanggal <= endDate
+    })
+    .reduce((acc, b) => acc + Number(b.nominal || 0), 0)
+
   const totalPotonganKasbon = loans.reduce((acc, l) => {
     const cicilan = Math.min(Number(l.sisa_pinjaman || 0), Number(l.cicilan_per_bulan || 0))
     return acc + cicilan
@@ -109,7 +133,6 @@ export function kalkulasiPayrollKaryawan({
   const totalPotongan = totalPotonganTelat + totalPotonganOff + totalPotonganKasbon
   const totalBonus = totalBonusLibur + totalBonusManual
 
-  // 3. Formula final
   const gajiPokok = Number(employee.gaji_pokok || 0)
   const totalGaji = Math.max(0, gajiPokok + totalBonus - totalPotongan + Number(adjustment || 0))
 
@@ -129,6 +152,7 @@ export function kalkulasiPayrollKaryawan({
     total_bonus_manual: totalBonusManual,
     adjustment: Number(adjustment || 0),
     total_gaji: totalGaji,
+    periode_start: startDate,
+    periode_end: endDate,
   }
 }
-

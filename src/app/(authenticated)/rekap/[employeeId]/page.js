@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { RekapKaryawanView } from '@/components/rekap/RekapKaryawanView'
+import { getPayrollPeriod } from '@/lib/utils/payroll'
 
 export default async function RekapKaryawanPage({ params, searchParams }) {
   const { employeeId } = await params
@@ -21,17 +22,18 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
 
   const db = getDbClient(supabase)
 
-  const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
-  const endDate = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+  // Ambil profil dulu untuk menghitung range tanggal periode berdasarkan tanggal bergabung
+  const { data: employee } = await db.from('profiles').select('*').eq('id', employeeId).single()
+  if (!employee || employee.role === 'owner') notFound()
+
+  const { startDate, endDate } = getPayrollPeriod(employee, currentMonth, currentYear)
 
   const [
-    { data: employee },
     { data: payroll },
     { data: attendances },
     { data: allEmployees },
     { data: settings },
   ] = await Promise.all([
-    db.from('profiles').select('*').eq('id', employeeId).single(),
     db
       .from('payroll')
       .select('*')
@@ -55,8 +57,6 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
     db.from('settings').select('*').eq('id', 1).maybeSingle(),
   ])
 
-  if (!employee || employee.role === 'owner') notFound()
-
   return (
     <RekapKaryawanView
       employee={employee}
@@ -66,6 +66,8 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       settings={settings || {}}
       currentMonth={currentMonth}
       currentYear={currentYear}
+      periodStart={startDate}
+      periodEnd={endDate}
     />
   )
 }

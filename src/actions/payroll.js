@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { kalkulasiPayrollKaryawan } from '@/lib/utils/payroll'
+import { kalkulasiPayrollKaryawan, getPayrollPeriod } from '@/lib/utils/payroll'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 
 /**
@@ -61,28 +61,26 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
     return { error: 'Tidak ada karyawan aktif yang ditemukan.' }
   }
 
-  // Tanggal awal dan akhir bulan periode
-  const startDateStr = `${periodeTahun}-${String(periodeBulan).padStart(2, '0')}-01`
-  const lastDay = new Date(periodeTahun, periodeBulan, 0).getDate()
-  const endDateStr = `${periodeTahun}-${String(periodeBulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-
   // 4. Hitung payroll per karyawan secara paralel dan tangguh
   await Promise.all(
     employees.map(async (emp) => {
       try {
+        // Hitung range tanggal periode berdasarkan tanggal bergabung karyawan
+        const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, periodeBulan, periodeTahun)
+
         const [{ data: attendances }, { data: bonuses }, { data: activeLoans }, { data: existingPayroll }] = await Promise.all([
           db
             .from('attendance')
             .select('*')
             .eq('employee_id', emp.id)
-            .gte('tanggal', startDateStr)
-            .lte('tanggal', endDateStr),
+            .gte('tanggal', empStartDate)
+            .lte('tanggal', empEndDate),
           db
             .from('bonus')
             .select('*')
             .eq('employee_id', emp.id)
-            .eq('periode_bulan', periodeBulan)
-            .eq('periode_tahun', periodeTahun),
+            .gte('tanggal', empStartDate)
+            .lte('tanggal', empEndDate),
           db
             .from('loans')
             .select('*')

@@ -325,7 +325,7 @@ const STATUS_LABEL_PDF = {
 /**
  * Generator PDF Rekap Absensi & Gaji Per Karyawan
  */
-export function generateRekapKaryawanPDF(employee, payroll, attendances = [], currentMonth, currentYear, settings = {}) {
+export function generateRekapKaryawanPDF(employee, payroll, attendances = [], currentMonth, currentYear, settings = {}, periodStart, periodEnd) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -334,7 +334,12 @@ export function generateRekapKaryawanPDF(employee, payroll, attendances = [], cu
 
   const namaKedai = settings.nama_kedai || 'TAICHAN & CHICKEN KA'
   const pageWidth = doc.internal.pageSize.getWidth()
-  const periodLabel = `${BULAN_PDF[currentMonth - 1]} ${currentYear}`
+
+  // Label periode: gunakan range tanggal jika tersedia, fallback ke bulan/tahun
+  const fmtD = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const periodLabel = (periodStart && periodEnd)
+    ? `${fmtD(periodStart)} – ${fmtD(periodEnd)}`
+    : `${BULAN_PDF[currentMonth - 1]} ${currentYear}`
 
   // 1. Header
   doc.setFillColor(11, 15, 25)

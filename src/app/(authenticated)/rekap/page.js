@@ -105,7 +105,14 @@ export default async function RekapLaporanPage({ searchParams }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{p.profiles?.nama}</h3>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>{p.profiles?.jabatan || 'Staf Kedai'}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
+                      {p.profiles?.jabatan || 'Staf Kedai'}
+                      {p.periode_start && (
+                        <span style={{ color: 'var(--accent)', fontWeight: 600, marginLeft: '0.35rem' }}>
+                          · {new Date(p.periode_start + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} – {new Date(p.periode_end + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>

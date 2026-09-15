@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { generatePayrollPeriodAction, updatePaymentStatusAction } from '@/actions/payroll'
 import { formatRupiah } from '@/lib/constants'
+import { getPayrollPeriod } from '@/lib/utils/payroll'
 
 export default async function PayrollPage({ searchParams }) {
   const params = await searchParams
@@ -95,6 +96,9 @@ export default async function PayrollPage({ searchParams }) {
               item.status_pembayaran === 'sudah_dibayar' ? 'belum_dibayar' : 'sudah_dibayar'
             )
             const tglGajian = item.profiles?.tanggal_mulai ? new Date(item.profiles.tanggal_mulai).getDate() : 1
+            const empForPeriod = { tanggal_mulai: item.profiles?.tanggal_mulai }
+            const { startDate: pStart, endDate: pEnd } = getPayrollPeriod(empForPeriod, currentMonth, currentYear)
+            const fmtRange = (d) => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 
             return (
               <Card key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
@@ -102,7 +106,10 @@ export default async function PayrollPage({ searchParams }) {
                   <div>
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{item.profiles?.nama}</h3>
                     <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
-                      {item.profiles?.jabatan || 'Staf Operasional'} • <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Tgl Gajian: Setiap tgl {tglGajian}</span>
+                      {item.profiles?.jabatan || 'Staf Operasional'} •{' '}
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                        Periode: {fmtRange(pStart)} – {fmtRange(pEnd)}
+                      </span>
                     </div>
                   </div>
 
