@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
@@ -13,9 +14,10 @@ import { formatRupiah, formatTanggal } from '@/lib/constants'
 export default async function DetailPayrollPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
+  const db = getDbClient(supabase)
 
   // Ambil record payroll
-  const { data: payroll } = await supabase
+  const { data: payroll } = await db
     .from('payroll')
     .select('*, profiles(*)')
     .eq('id', id)
@@ -24,7 +26,7 @@ export default async function DetailPayrollPage({ params }) {
   if (!payroll) notFound()
 
   // Ambil rincian bonus manual
-  const { data: bonusList } = await supabase
+  const { data: bonusList } = await db
     .from('bonus')
     .select('*')
     .eq('employee_id', payroll.employee_id)

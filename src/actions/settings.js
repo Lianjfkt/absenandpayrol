@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function updateSettingsAction(formData) {
@@ -11,6 +12,8 @@ export async function updateSettingsAction(formData) {
   if (profile?.role !== 'owner') {
     return { error: 'Hanya Owner yang dapat mengubah pengaturan kedai.' }
   }
+
+  const db = getDbClient(supabase)
 
   const nama_kedai = formData.get('nama_kedai')
   const lokasi_lat = parseFloat(formData.get('lokasi_lat'))
@@ -25,7 +28,7 @@ export async function updateSettingsAction(formData) {
   const tier2_rate = parseInt(formData.get('tier2_rate') || '2000', 10)
   const tier3_flat = parseInt(formData.get('tier3_flat') || '50000', 10)
 
-  const { error } = await supabase
+  const { error } = await db
     .from('settings')
     .upsert({
       id: 1,

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -18,6 +19,7 @@ export default async function DashboardPage() {
     .maybeSingle()
 
   const isOwner = profile?.role === ROLES.OWNER
+  const db = isOwner ? getDbClient(supabase) : supabase
   const todayStr = new Date().toISOString().split('T')[0]
   const todayDay = new Date().getDay()
   const isHariLibur = todayDay === profile?.hari_libur
@@ -52,19 +54,19 @@ export default async function DashboardPage() {
       monthlyAttendance = monthlyAttRes.data || []
     } else {
       const [empRes, todayAttDataRes, mAttDataRes, loansDataRes] = await Promise.all([
-        supabase
+        db
           .from('profiles')
           .select('*')
           .order('nama', { ascending: true }),
-        supabase
+        db
           .from('attendance')
           .select('*, profiles:employee_id(nama)')
           .eq('tanggal', todayStr),
-        supabase
+        db
           .from('attendance')
           .select('*')
           .gte('tanggal', currentMonthStart),
-        supabase
+        db
           .from('loans')
           .select('*')
           .eq('status', 'aktif'),

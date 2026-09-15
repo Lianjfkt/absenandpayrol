@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
@@ -11,8 +12,9 @@ import { HARI } from '@/lib/constants'
 export default async function EditKaryawanPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
+  const db = getDbClient(supabase)
 
-  const { data: employee } = await supabase
+  const { data: employee } = await db
     .from('profiles')
     .select('*')
     .eq('id', id)

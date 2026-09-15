@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { isDalamRadius } from '@/lib/utils/geo'
 import { tentukanStatusAbsensi } from '@/lib/utils/attendance'
@@ -130,6 +131,8 @@ export async function manualAttendanceOverrideAction(formData) {
     return { error: 'Hanya Owner yang dapat mengubah data absensi manual.' }
   }
 
+  const db = getDbClient(supabase)
+
   const employee_id = formData.get('employee_id')
   const tanggal = formData.get('tanggal')
   const status = formData.get('status') || ATTENDANCE_STATUS.HADIR
@@ -158,7 +161,7 @@ export async function manualAttendanceOverrideAction(formData) {
     jamCheckoutISO = new Date(`${tanggal}T${formattedJamPulang}+07:00`).toISOString()
   }
 
-  const { error } = await supabase.from('attendance').upsert(
+  const { error } = await db.from('attendance').upsert(
     {
       employee_id,
       tanggal,
@@ -198,7 +201,9 @@ export async function deleteAttendanceAction(attendanceId) {
     return { error: 'Hanya Owner yang dapat menghapus data absensi.' }
   }
 
-  const { error } = await supabase
+  const db = getDbClient(supabase)
+
+  const { error } = await db
     .from('attendance')
     .delete()
     .eq('id', attendanceId)
@@ -213,4 +218,5 @@ export async function deleteAttendanceAction(attendanceId) {
   revalidatePath('/payroll')
   return { success: true }
 }
+
 

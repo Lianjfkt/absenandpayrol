@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function addBonusAction(formData) {
@@ -14,6 +15,8 @@ export async function addBonusAction(formData) {
     return { error: 'Hanya Owner yang dapat menambah bonus.' }
   }
 
+  const db = getDbClient(supabase)
+
   const employee_id = formData.get('employee_id')
   const periode_bulan = parseInt(formData.get('periode_bulan'), 10)
   const periode_tahun = parseInt(formData.get('periode_tahun'), 10)
@@ -24,7 +27,7 @@ export async function addBonusAction(formData) {
     return { error: 'Semua kolom bonus wajib diisi.' }
   }
 
-  const { error } = await supabase.from('bonus').insert({
+  const { error } = await db.from('bonus').insert({
     employee_id,
     periode_bulan,
     periode_tahun,
@@ -51,7 +54,9 @@ export async function deleteBonusAction(bonusId) {
     return { error: 'Hanya Owner yang dapat menghapus bonus.' }
   }
 
-  const { error } = await supabase.from('bonus').delete().eq('id', bonusId)
+  const db = getDbClient(supabase)
+
+  const { error } = await db.from('bonus').delete().eq('id', bonusId)
 
   if (error) {
     return { error: `Gagal menghapus bonus: ${error.message}` }
@@ -60,3 +65,4 @@ export async function deleteBonusAction(bonusId) {
   revalidatePath('/payroll')
   return { success: true }
 }
+

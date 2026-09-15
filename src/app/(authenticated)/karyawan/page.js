@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
@@ -15,11 +16,13 @@ export default async function KaryawanPage() {
   const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
-  const { data: employees } = await supabase
+  const db = getDbClient(supabase)
+  const { data: allProfiles } = await db
     .from('profiles')
     .select('*')
-    .eq('role', 'karyawan')
     .order('created_at', { ascending: true })
+
+  const employees = (allProfiles || []).filter((p) => p.role !== 'owner')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>

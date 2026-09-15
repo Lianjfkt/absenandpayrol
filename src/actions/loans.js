@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -15,6 +16,8 @@ export async function createLoanAction(formData) {
     return { error: 'Hanya Owner yang dapat mencatat kasbon.' }
   }
 
+  const db = getDbClient(supabase)
+
   const employee_id = formData.get('employee_id')
   const nominal_pinjaman = parseInt(formData.get('nominal_pinjaman') || '0', 10)
   const cicilan_per_bulan = parseInt(formData.get('cicilan_per_bulan') || '0', 10)
@@ -25,7 +28,7 @@ export async function createLoanAction(formData) {
     return { error: 'Karyawan, nominal pinjaman, dan cicilan bulanan wajib diisi dengan benar.' }
   }
 
-  const { error } = await supabase.from('loans').insert({
+  const { error } = await db.from('loans').insert({
     employee_id,
     nominal_pinjaman,
     cicilan_per_bulan,
@@ -56,7 +59,9 @@ export async function updateLoanStatusAction(loanId, status, sisaPinjamanBaru = 
     return { error: 'Hanya Owner yang dapat mengubah status kasbon.' }
   }
 
-  const { error } = await supabase
+  const db = getDbClient(supabase)
+
+  const { error } = await db
     .from('loans')
     .update({
       status,
@@ -72,3 +77,4 @@ export async function updateLoanStatusAction(loanId, status, sisaPinjamanBaru = 
   revalidatePath('/kasbon')
   return { success: true }
 }
+

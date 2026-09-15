@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient, getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -92,6 +92,8 @@ export async function updateEmployeeAction(id, formData) {
     redirect('/karyawan?error=Hanya%20Owner%20yang%20dapat%20mengubah%20karyawan')
   }
 
+  const db = getDbClient(supabase)
+
   const nama = formData.get('nama')
   const no_hp = formData.get('no_hp')
   const alamat = formData.get('alamat')
@@ -101,7 +103,7 @@ export async function updateEmployeeAction(id, formData) {
   const hari_libur = parseInt(formData.get('hari_libur') || '0', 10)
   const status_aktif = formData.get('status_aktif') === 'true'
 
-  const { error } = await supabase
+  const { error } = await db
     .from('profiles')
     .update({
       nama,
@@ -122,6 +124,7 @@ export async function updateEmployeeAction(id, formData) {
 
   revalidatePath('/karyawan')
   revalidatePath('/dashboard')
+  revalidatePath('/payroll')
   redirect('/karyawan')
 }
 
@@ -139,7 +142,9 @@ export async function toggleEmployeeStatusAction(id, currentStatus) {
     return
   }
 
-  await supabase
+  const db = getDbClient(supabase)
+
+  await db
     .from('profiles')
     .update({
       status_aktif: !currentStatus,
@@ -149,4 +154,6 @@ export async function toggleEmployeeStatusAction(id, currentStatus) {
 
   revalidatePath('/karyawan')
   revalidatePath('/dashboard')
+  revalidatePath('/payroll')
 }
+

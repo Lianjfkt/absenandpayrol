@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
@@ -18,14 +19,16 @@ export default async function RekapLaporanPage({ searchParams }) {
   const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
+  const db = getDbClient(supabase)
+
   // Ambil data payroll dan setting kedai secara paralel
   const [{ data: payrolls }, { data: settings }] = await Promise.all([
-    supabase
+    db
       .from('payroll')
       .select('*, profiles:employee_id(nama, jabatan)')
       .eq('periode_bulan', currentMonth)
       .eq('periode_tahun', currentYear),
-    supabase
+    db
       .from('settings')
       .select('*')
       .eq('id', 1)

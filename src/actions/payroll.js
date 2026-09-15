@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { kalkulasiPayrollKaryawan } from '@/lib/utils/payroll'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
@@ -20,12 +21,14 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
     return { error: 'Hanya Owner yang dapat men-generate payroll.' }
   }
 
+  const db = getDbClient(supabase)
+
   // 2. Ambil setting kedai
-  const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single()
+  const { data: settings } = await db.from('settings').select('*').eq('id', 1).single()
   const currentSettings = settings || DEFAULT_SETTINGS
 
   // 3. Ambil semua karyawan aktif (role non-owner dan status_aktif bukan false)
-  const { data: allProfiles, error: empErr } = await supabase
+  const { data: allProfiles, error: empErr } = await db
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: true })
@@ -52,24 +55,24 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
     employees.map(async (emp) => {
       try {
         const [{ data: attendances }, { data: bonuses }, { data: activeLoans }, { data: existingPayroll }] = await Promise.all([
-          supabase
+          db
             .from('attendance')
             .select('*')
             .eq('employee_id', emp.id)
             .gte('tanggal', startDateStr)
             .lte('tanggal', endDateStr),
-          supabase
+          db
             .from('bonus')
             .select('*')
             .eq('employee_id', emp.id)
             .eq('periode_bulan', periodeBulan)
             .eq('periode_tahun', periodeTahun),
-          supabase
+          db
             .from('loans')
             .select('*')
             .eq('employee_id', emp.id)
             .eq('status', 'aktif'),
-          supabase
+          db
             .from('payroll')
             .select('adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
             .eq('employee_id', emp.id)
@@ -92,7 +95,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
           periodeTahun,
         })
 
-        await supabase.from('payroll').upsert(
+        await db.from('payroll').upsert(
           {
             ...calcResult,
             status: 'draft',
@@ -128,8 +131,10 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
     return { error: 'Hanya Owner yang dapat mengubah status pembayaran.' }
   }
 
+  const db = getDbClient(supabase)
+
   // Ambil record payroll saat ini
-  const { data: currentPayroll } = await supabase
+  const { data: currentPayroll } = await db
     .from('payroll')
     .select('*')
     .eq('id', payrollId)
@@ -142,7 +147,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
   const prevStatus = currentPayroll.status_pembayaran
 
   // 1. Update status pembayaran payroll
-  const { error } = await supabase
+  const { error } = await db
     .from('payroll')
     .update({
       status_pembayaran: statusPembayaran,
@@ -157,7 +162,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
 
   // 2. Otomatisasi Pemotongan Saldo Kasbon jika berubah menjadi 'sudah_dibayar'
   if (prevStatus !== 'sudah_dibayar' && statusPembayaran === 'sudah_dibayar') {
-    const { data: activeLoans } = await supabase
+    const { data: activeLoans } = await db
       .from('loans')
       .select('*')
       .eq('employee_id', currentPayroll.employee_id)
@@ -172,7 +177,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
         const newSisa = Math.max(0, loan.sisa_pinjaman - deduction)
         const newStatus = newSisa === 0 ? 'lunas' : 'aktif'
 
-        await supabase
+        await db
           .from('loans')
           .update({
             sisa_pinjaman: newSisa,
@@ -188,7 +193,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
 
   // 3. Rollback pengembalian saldo kasbon jika diubah kembali ke 'belum_dibayar'
   else if (prevStatus === 'sudah_dibayar' && statusPembayaran === 'belum_dibayar') {
-    const { data: empLoans } = await supabase
+    const { data: empLoans } = await db
       .from('loans')
       .select('*')
       .eq('employee_id', currentPayroll.employee_id)
@@ -202,7 +207,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
         const toRestore = Math.min(maxRestore, sisaKembali)
         if (toRestore > 0) {
           const newSisa = loan.sisa_pinjaman + toRestore
-          await supabase
+          await db
             .from('loans')
             .update({
               sisa_pinjaman: newSisa,
@@ -223,7 +228,6 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
   return { success: true }
 }
 
-
 /**
  * Server action: Update Adjustment Manual Payroll
  */
@@ -238,7 +242,9 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
     return { error: 'Hanya Owner yang dapat mengubah adjustment.' }
   }
 
-  const { data: current } = await supabase.from('payroll').select('*').eq('id', payrollId).single()
+  const db = getDbClient(supabase)
+
+  const { data: current } = await db.from('payroll').select('*').eq('id', payrollId).single()
   if (!current) return { error: 'Data payroll tidak ditemukan.' }
 
   const adjNum = parseInt(adjustment || '0', 10)
@@ -250,11 +256,11 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
       current.total_bonus_manual -
       current.total_potongan_telat -
       current.total_potongan_off -
-      (current.total_potongan_kasbon || 0) + // Fix: kasbon sebelumnya tidak dihitung
+      (current.total_potongan_kasbon || 0) +
       adjNum
   )
 
-  const { error } = await supabase
+  const { error } = await db
     .from('payroll')
     .update({
       adjustment: adjNum,

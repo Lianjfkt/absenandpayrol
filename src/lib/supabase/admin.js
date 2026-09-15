@@ -15,3 +15,15 @@ export function createAdminClient() {
     },
   })
 }
+
+export function getDbClient(fallbackClient) {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return createAdminClient()
+    }
+  } catch (err) {
+    console.warn('createAdminClient not initialized, using fallback client:', err)
+  }
+  return fallbackClient
+}
+

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
@@ -21,8 +22,10 @@ export default async function PayrollPage({ searchParams }) {
   const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
+  const db = getDbClient(supabase)
+
   // Ambil data payroll periode terpilih
-  const { data: payrollList } = await supabase
+  const { data: payrollList } = await db
     .from('payroll')
     .select('*, profiles:employee_id(nama, jabatan, tanggal_mulai)')
     .eq('periode_bulan', currentMonth)

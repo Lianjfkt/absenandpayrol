@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { KasbonClientView } from '@/components/loans/KasbonClientView'
 
@@ -24,13 +25,15 @@ export default async function KasbonPage() {
     redirect('/dashboard')
   }
 
+  const db = getDbClient(supabase)
+
   // Ambil data kasbon dan semua profil karyawan secara paralel
   const [{ data: loans }, { data: allProfiles }] = await Promise.all([
-    supabase
+    db
       .from('loans')
       .select('*, profiles:employee_id(nama, jabatan)')
       .order('created_at', { ascending: false }),
-    supabase
+    db
       .from('profiles')
       .select('id, nama, jabatan, status_aktif, role')
       .order('nama', { ascending: true }),
