@@ -18,18 +18,19 @@ export default async function RekapLaporanPage({ searchParams }) {
   const { data: ownerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
-  // Ambil data payroll yang telah digenerate pada periode
-  const { data: payrolls } = await supabase
-    .from('payroll')
-    .select('*, profiles:employee_id(nama, jabatan)')
-    .eq('periode_bulan', currentMonth)
-    .eq('periode_tahun', currentYear)
-
-  const { data: settings } = await supabase
-    .from('settings')
-    .select('*')
-    .eq('id', 1)
-    .maybeSingle()
+  // Ambil data payroll dan setting kedai secara paralel
+  const [{ data: payrolls }, { data: settings }] = await Promise.all([
+    supabase
+      .from('payroll')
+      .select('*, profiles:employee_id(nama, jabatan)')
+      .eq('periode_bulan', currentMonth)
+      .eq('periode_tahun', currentYear),
+    supabase
+      .from('settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle(),
+  ])
 
   const totalPengeluaran = payrolls?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
   const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off + (p.total_potongan_kasbon || 0)), 0) || 0

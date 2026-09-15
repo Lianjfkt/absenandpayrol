@@ -25,61 +25,64 @@ export default async function DashboardPage() {
   // Monthly stats calculation (current month)
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
-  // Data untuk Karyawan
-  const { data: todayAttendance } = user
-    ? await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', user.id)
-        .eq('tanggal', todayStr)
-        .maybeSingle()
-    : { data: null }
-
-  const { data: monthlyAttendance } = user && !isOwner
-    ? await supabase
-        .from('attendance')
-        .select('*')
-        .eq('employee_id', user.id)
-        .gte('tanggal', currentMonthStart)
-    : { data: [] }
-
-  const hadirDays = monthlyAttendance?.filter(a => a.status === 'hadir' || a.status === 'telat').length || 0
-  const targetDays = 26
-  const attendancePercentage = Math.min(100, Math.round((hadirDays / targetDays) * 100))
-
-  // Data untuk Owner
+  // Data untuk Karyawan & Owner diambil secara paralel
+  let todayAttendance = null
+  let monthlyAttendance = []
   let allEmployees = []
   let todayAllAttendance = []
   let ownerMonthlyAttendance = []
   let activeLoans = []
 
-  if (isOwner) {
-    const { data: empData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'karyawan')
-      .order('nama', { ascending: true })
+  if (user) {
+    if (!isOwner) {
+      const [todayAttRes, monthlyAttRes] = await Promise.all([
+        supabase
+          .from('attendance')
+          .select('*')
+          .eq('employee_id', user.id)
+          .eq('tanggal', todayStr)
+          .maybeSingle(),
+        supabase
+          .from('attendance')
+          .select('*')
+          .eq('employee_id', user.id)
+          .gte('tanggal', currentMonthStart),
+      ])
+      todayAttendance = todayAttRes.data
+      monthlyAttendance = monthlyAttRes.data || []
+    } else {
+      const [empRes, todayAttDataRes, mAttDataRes, loansDataRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .order('nama', { ascending: true }),
+        supabase
+          .from('attendance')
+          .select('*, profiles:employee_id(nama)')
+          .eq('tanggal', todayStr),
+        supabase
+          .from('attendance')
+          .select('*')
+          .gte('tanggal', currentMonthStart),
+        supabase
+          .from('loans')
+          .select('*')
+          .eq('status', 'aktif'),
+      ])
 
-    const { data: todayAttData } = await supabase
-      .from('attendance')
-      .select('*, profiles:employee_id(nama)')
-      .eq('tanggal', todayStr)
-
-    const { data: mAttData } = await supabase
-      .from('attendance')
-      .select('*')
-      .gte('tanggal', currentMonthStart)
-
-    const { data: loansData } = await supabase
-      .from('loans')
-      .select('*')
-      .eq('status', 'aktif')
-
-    allEmployees = empData || []
-    todayAllAttendance = todayAttData || []
-    ownerMonthlyAttendance = mAttData || []
-    activeLoans = loansData || []
+      const rawProfiles = empRes.data || []
+      allEmployees = rawProfiles.filter(
+        (p) => p.role !== 'owner' && p.status_aktif !== false
+      )
+      todayAllAttendance = todayAttDataRes.data || []
+      ownerMonthlyAttendance = mAttDataRes.data || []
+      activeLoans = loansDataRes.data || []
+    }
   }
+
+  const hadirDays = monthlyAttendance.filter(a => a.status === 'hadir' || a.status === 'telat').length
+  const targetDays = 26
+  const attendancePercentage = Math.min(100, Math.round((hadirDays / targetDays) * 100))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>

@@ -13,16 +13,8 @@ export default async function AbsensiPage() {
   const todayDay = new Date().getDay()
   const isHariLibur = todayDay === profile?.hari_libur
 
-  // Ambil absensi hari ini untuk user
-  const { data: todayAttendance } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('employee_id', user.id)
-    .eq('tanggal', todayStr)
-    .maybeSingle()
-
-  // Ambil histori riwayat absensi
-  let query = supabase
+  // Ambil data absensi & data pendukung secara paralel
+  let historyQuery = supabase
     .from('attendance')
     .select('*, profiles:employee_id(nama, jabatan)')
     .order('tanggal', { ascending: false })
@@ -30,32 +22,34 @@ export default async function AbsensiPage() {
     .limit(60)
 
   if (!isOwner) {
-    query = query.eq('employee_id', user.id)
+    historyQuery = historyQuery.eq('employee_id', user.id)
   }
 
-  const { data: history } = await query
-
-  // Jika owner, ambil data karyawan aktif & settings kedai untuk modal manual
-  let employees = []
-  let currentSettings = DEFAULT_SETTINGS
-
-  if (isOwner) {
-    const { data: empData } = await supabase
-      .from('profiles')
-      .select('id, nama, jabatan')
-      .eq('role', 'karyawan')
-      .eq('status_aktif', true)
-      .order('nama', { ascending: true })
-
-    const { data: setRow } = await supabase
-      .from('settings')
+  const [
+    { data: todayAttendance },
+    { data: history },
+    allProfilesRes,
+    settingsRes,
+  ] = await Promise.all([
+    supabase
+      .from('attendance')
       .select('*')
-      .eq('id', 1)
-      .maybeSingle()
+      .eq('employee_id', user.id)
+      .eq('tanggal', todayStr)
+      .maybeSingle(),
+    historyQuery,
+    isOwner
+      ? supabase.from('profiles').select('id, nama, jabatan, status_aktif, role').order('nama', { ascending: true })
+      : Promise.resolve({ data: [] }),
+    isOwner
+      ? supabase.from('settings').select('*').eq('id', 1).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
 
-    employees = empData || []
-    if (setRow) currentSettings = setRow
-  }
+  const employees = (allProfilesRes.data || []).filter(
+    (p) => p.role !== 'owner' && p.status_aktif !== false
+  )
+  const currentSettings = settingsRes.data || DEFAULT_SETTINGS
 
   return (
     <AbsensiClientView

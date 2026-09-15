@@ -24,23 +24,27 @@ export default async function KasbonPage() {
     redirect('/dashboard')
   }
 
-  // Ambil data semua kasbon
-  const { data: loans } = await supabase
-    .from('loans')
-    .select('*, profiles:employee_id(nama, jabatan)')
-    .order('created_at', { ascending: false })
+  // Ambil data kasbon dan semua profil karyawan secara paralel
+  const [{ data: loans }, { data: allProfiles }] = await Promise.all([
+    supabase
+      .from('loans')
+      .select('*, profiles:employee_id(nama, jabatan)')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('profiles')
+      .select('id, nama, jabatan, status_aktif, role')
+      .order('nama', { ascending: true }),
+  ])
 
-  // Ambil data karyawan aktif untuk dropdown
-  const { data: employees } = await supabase
-    .from('profiles')
-    .select('id, nama, jabatan')
-    .eq('role', 'karyawan')
-    .eq('status_aktif', true)
+  // Filter karyawan yang bukan owner dan status_aktif bukan false
+  const employees = (allProfiles || []).filter(
+    (p) => p.role !== 'owner' && p.status_aktif !== false
+  )
 
   return (
     <KasbonClientView
       loans={loans || []}
-      employees={employees || []}
+      employees={employees}
     />
   )
 }

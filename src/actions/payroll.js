@@ -24,14 +24,21 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
   const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single()
   const currentSettings = settings || DEFAULT_SETTINGS
 
-  // 3. Ambil semua karyawan aktif
-  const { data: employees } = await supabase
+  // 3. Ambil semua karyawan aktif (role non-owner dan status_aktif bukan false)
+  const { data: allProfiles, error: empErr } = await supabase
     .from('profiles')
     .select('*')
-    .eq('role', 'karyawan')
-    .eq('status_aktif', true)
+    .order('created_at', { ascending: true })
 
-  if (!employees || employees.length === 0) {
+  if (empErr || !allProfiles) {
+    return { error: 'Gagal mengambil data karyawan: ' + (empErr?.message || 'Database error') }
+  }
+
+  const employees = allProfiles.filter(
+    (p) => p.role !== 'owner' && p.status_aktif !== false
+  )
+
+  if (employees.length === 0) {
     return { error: 'Tidak ada karyawan aktif yang ditemukan.' }
   }
 
@@ -40,66 +47,67 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
   const lastDay = new Date(periodeTahun, periodeBulan, 0).getDate()
   const endDateStr = `${periodeTahun}-${String(periodeBulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-  // 4. Hitung payroll per karyawan
-  for (const emp of employees) {
-    // Ambil data attendance bulan ini
-    const { data: attendances } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', emp.id)
-      .gte('tanggal', startDateStr)
-      .lte('tanggal', endDateStr)
+  // 4. Hitung payroll per karyawan secara paralel dan tangguh
+  await Promise.all(
+    employees.map(async (emp) => {
+      try {
+        const [{ data: attendances }, { data: bonuses }, { data: activeLoans }, { data: existingPayroll }] = await Promise.all([
+          supabase
+            .from('attendance')
+            .select('*')
+            .eq('employee_id', emp.id)
+            .gte('tanggal', startDateStr)
+            .lte('tanggal', endDateStr),
+          supabase
+            .from('bonus')
+            .select('*')
+            .eq('employee_id', emp.id)
+            .eq('periode_bulan', periodeBulan)
+            .eq('periode_tahun', periodeTahun),
+          supabase
+            .from('loans')
+            .select('*')
+            .eq('employee_id', emp.id)
+            .eq('status', 'aktif'),
+          supabase
+            .from('payroll')
+            .select('adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
+            .eq('employee_id', emp.id)
+            .eq('periode_bulan', periodeBulan)
+            .eq('periode_tahun', periodeTahun)
+            .maybeSingle(),
+        ])
 
-    // Ambil bonus manual bulan ini
-    const { data: bonuses } = await supabase
-      .from('bonus')
-      .select('*')
-      .eq('employee_id', emp.id)
-      .eq('periode_bulan', periodeBulan)
-      .eq('periode_tahun', periodeTahun)
+        const adj = existingPayroll?.adjustment || 0
 
-    // Ambil kasbon aktif
-    const { data: activeLoans } = await supabase
-      .from('loans')
-      .select('*')
-      .eq('employee_id', emp.id)
-      .eq('status', 'aktif')
+        const calcResult = kalkulasiPayrollKaryawan({
+          employee: emp,
+          attendances: attendances || [],
+          bonuses: bonuses || [],
+          loans: activeLoans || [],
+          leaves: [],
+          settings: currentSettings,
+          adjustment: adj,
+          periodeBulan,
+          periodeTahun,
+        })
 
-    // Cek apakah ada record payroll draft/adjustment lama
-    const { data: existingPayroll } = await supabase
-      .from('payroll')
-      .select('adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
-      .eq('employee_id', emp.id)
-      .eq('periode_bulan', periodeBulan)
-      .eq('periode_tahun', periodeTahun)
-      .maybeSingle()
-
-    const adj = existingPayroll?.adjustment || 0
-
-    const calcResult = kalkulasiPayrollKaryawan({
-      employee: emp,
-      attendances: attendances || [],
-      bonuses: bonuses || [],
-      loans: activeLoans || [],
-      leaves: [],
-      settings: currentSettings,
-      adjustment: adj,
-      periodeBulan,
-      periodeTahun,
+        await supabase.from('payroll').upsert(
+          {
+            ...calcResult,
+            status: 'draft',
+            status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
+            tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
+            keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'employee_id,periode_bulan,periode_tahun' }
+        )
+      } catch (err) {
+        console.error(`Error calculating payroll for employee ${emp.nama || emp.id}:`, err)
+      }
     })
-
-    await supabase.from('payroll').upsert(
-      {
-        ...calcResult,
-        status: 'draft',
-        status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
-        tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
-        keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'employee_id,periode_bulan,periode_tahun' }
-    )
-  }
+  )
 
   revalidatePath('/payroll')
   revalidatePath('/rekap')
