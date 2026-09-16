@@ -50,6 +50,40 @@ export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
 }
 
 /**
+ * Menentukan periode payroll (bulan dan tahun gajian) untuk tanggal absensi tertentu.
+ * @param {object} employee - profil karyawan (tanggal_mulai)
+ * @param {string} dateStr - tanggal format "YYYY-MM-DD"
+ * @returns {{ periodeBulan: number, periodeTahun: number }}
+ */
+export function getPayrollPeriodForDate(employee, dateStr) {
+  const tanggalMulai = employee?.tanggal_mulai || null
+  let tglGajian = 1
+  if (tanggalMulai) {
+    tglGajian = parseInt(tanggalMulai.split('-')[2], 10)
+  }
+
+  const [yStr, mStr, dStr] = dateStr.split('-')
+  const year = parseInt(yStr, 10)
+  const month = parseInt(mStr, 10)
+  const day = parseInt(dStr, 10)
+
+  if (tglGajian === 1) {
+    return { periodeBulan: month, periodeTahun: year }
+  }
+
+  if (day >= tglGajian) {
+    // Masuk periode gajian bulan berikutnya
+    if (month === 12) {
+      return { periodeBulan: 1, periodeTahun: year + 1 }
+    }
+    return { periodeBulan: month + 1, periodeTahun: year }
+  } else {
+    // Masuk periode gajian bulan ini
+    return { periodeBulan: month, periodeTahun: year }
+  }
+}
+
+/**
  * Menghitung rekap payroll karyawan untuk 1 periode berdasarkan tanggal bergabung.
  * Periode = startDate s/d endDate (bukan 1 – akhir bulan kalender).
  *
@@ -78,9 +112,10 @@ export function kalkulasiPayrollKaryawan({
 
   const { startDate, endDate } = getPayrollPeriod(employee, periodeBulan, periodeTahun)
 
-  // Batas evaluasi: jika periode masih berjalan, evaluasi sampai hari ini
-  const todayStr = new Date().toISOString().split('T')[0]
-  const maxEvalDate = endDate < todayStr ? endDate : todayStr
+  // Tanggal hari ini dalam WIB (UTC+7) secara eksplisit
+  const now = new Date()
+  const wibTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const todayStr = wibTime.toISOString().split('T')[0]
 
   // Map attendance berdasarkan tanggal untuk akses O(1)
   const attendanceMap = new Map()
@@ -88,11 +123,11 @@ export function kalkulasiPayrollKaryawan({
     attendanceMap.set(att.tanggal, att)
   })
 
-  // Iterasi setiap hari dalam range startDate – maxEvalDate
+  // Iterasi setiap hari dalam range startDate – endDate
   const cursor = new Date(startDate + 'T00:00:00Z')
-  const maxDate = new Date(maxEvalDate + 'T00:00:00Z')
+  const endCursor = new Date(endDate + 'T00:00:00Z')
 
-  while (cursor <= maxDate) {
+  while (cursor <= endCursor) {
     const dateStr = cursor.toISOString().split('T')[0]
 
     if (employee.tanggal_mulai && dateStr < employee.tanggal_mulai) {
@@ -105,18 +140,18 @@ export function kalkulasiPayrollKaryawan({
 
     const att = attendanceMap.get(dateStr)
 
-    if (isWeeklyOff) {
-      if (att && (att.status === ATTENDANCE_STATUS.HADIR || att.status === ATTENDANCE_STATUS.TELAT)) {
-        totalHariLiburMasuk++
-        if (att.status === ATTENDANCE_STATUS.TELAT) {
-          totalHariTelat++
-          totalPotonganTelat += Number(att.potongan_telat || 0)
-        } else {
-          totalHariHadir++
+    if (att) {
+      if (isWeeklyOff) {
+        if (att.status === ATTENDANCE_STATUS.HADIR || att.status === ATTENDANCE_STATUS.TELAT) {
+          totalHariLiburMasuk++
+          if (att.status === ATTENDANCE_STATUS.TELAT) {
+            totalHariTelat++
+            totalPotonganTelat += Number(att.potongan_telat || 0)
+          } else {
+            totalHariHadir++
+          }
         }
-      }
-    } else {
-      if (att) {
+      } else {
         if (att.status === ATTENDANCE_STATUS.HADIR) {
           totalHariHadir++
         } else if (att.status === ATTENDANCE_STATUS.TELAT) {
@@ -125,7 +160,10 @@ export function kalkulasiPayrollKaryawan({
         } else if (att.status === ATTENDANCE_STATUS.OFF) {
           totalHariOff++
         }
-      } else {
+      }
+    } else {
+      // Tidak ada data absensi: hanya hitung off/alpa jika tanggal sudah lewat atau hari ini (<= todayStr) dan bukan libur mingguan
+      if (dateStr <= todayStr && !isWeeklyOff) {
         totalHariOff++
       }
     }
@@ -136,12 +174,8 @@ export function kalkulasiPayrollKaryawan({
   const totalPotonganOff = totalHariOff * potonganOffRate
   const totalBonusLibur = totalHariLiburMasuk * bonusMasukLiburRate
 
-  // Bonus difilter berdasarkan range tanggal periode
+  // Bonus manual pada periode ini
   const totalBonusManual = bonuses
-    .filter((b) => {
-      if (!b.tanggal) return true
-      return b.tanggal >= startDate && b.tanggal <= endDate
-    })
     .reduce((acc, b) => acc + Number(b.nominal || 0), 0)
 
   const totalPotonganKasbon = loans.reduce((acc, l) => {

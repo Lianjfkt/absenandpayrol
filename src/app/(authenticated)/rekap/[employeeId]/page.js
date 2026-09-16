@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { RekapKaryawanView } from '@/components/rekap/RekapKaryawanView'
-import { getPayrollPeriod } from '@/lib/utils/payroll'
+import { getPayrollPeriod, kalkulasiPayrollKaryawan } from '@/lib/utils/payroll'
 
 export default async function RekapKaryawanPage({ params, searchParams }) {
   const { employeeId } = await params
@@ -57,10 +57,53 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
     db.from('settings').select('*').eq('id', 1).maybeSingle(),
   ])
 
+  let activePayroll = payroll
+  if (payroll && payroll.status_pembayaran !== 'sudah_dibayar') {
+    const [{ data: bonuses }, { data: activeLoans }] = await Promise.all([
+      db
+        .from('bonus')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('periode_bulan', currentMonth)
+        .eq('periode_tahun', currentYear),
+      db
+        .from('loans')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('status', 'aktif'),
+    ])
+
+    const freshPayroll = kalkulasiPayrollKaryawan({
+      employee,
+      attendances: attendances || [],
+      bonuses: bonuses || [],
+      loans: activeLoans || [],
+      leaves: [],
+      settings: settings || {},
+      adjustment: payroll.adjustment || 0,
+      periodeBulan: currentMonth,
+      periodeTahun: currentYear,
+    })
+
+    if (
+      freshPayroll.total_gaji !== payroll.total_gaji ||
+      freshPayroll.total_potongan_telat !== payroll.total_potongan_telat ||
+      freshPayroll.total_hari_telat !== payroll.total_hari_telat ||
+      freshPayroll.total_hari_off !== payroll.total_hari_off ||
+      freshPayroll.total_hari_hadir !== payroll.total_hari_hadir
+    ) {
+      await db.from('payroll').update({
+        ...freshPayroll,
+        updated_at: new Date().toISOString(),
+      }).eq('id', payroll.id)
+      activePayroll = { ...payroll, ...freshPayroll }
+    }
+  }
+
   return (
     <RekapKaryawanView
       employee={employee}
-      payroll={payroll}
+      payroll={activePayroll}
       attendances={attendances || []}
       allEmployees={allEmployees || []}
       settings={settings || {}}

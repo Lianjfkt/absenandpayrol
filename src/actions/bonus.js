@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { syncSingleEmployeePayroll } from '@/actions/payroll'
 
 export async function addBonusAction(formData) {
   const supabase = await createClient()
@@ -39,7 +40,10 @@ export async function addBonusAction(formData) {
     return { error: `Gagal menambah bonus: ${error.message}` }
   }
 
+  await syncSingleEmployeePayroll(db, employee_id, periode_bulan, periodeTahun)
+
   revalidatePath('/payroll')
+  revalidatePath('/rekap')
   return { success: true }
 }
 
@@ -56,13 +60,29 @@ export async function deleteBonusAction(bonusId) {
 
   const db = getDbClient(supabase)
 
+  const { data: existingBonus } = await db
+    .from('bonus')
+    .select('employee_id, periode_bulan, periode_tahun')
+    .eq('id', bonusId)
+    .single()
+
   const { error } = await db.from('bonus').delete().eq('id', bonusId)
 
   if (error) {
     return { error: `Gagal menghapus bonus: ${error.message}` }
   }
 
+  if (existingBonus) {
+    await syncSingleEmployeePayroll(
+      db,
+      existingBonus.employee_id,
+      existingBonus.periode_bulan,
+      existingBonus.periode_tahun
+    )
+  }
+
   revalidatePath('/payroll')
+  revalidatePath('/rekap')
   return { success: true }
 }
 

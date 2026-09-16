@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { isDalamRadius } from '@/lib/utils/geo'
 import { tentukanStatusAbsensi } from '@/lib/utils/attendance'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
+import { syncSingleEmployeePayrollByDate } from '@/actions/payroll'
 
 /** Mengembalikan string tanggal YYYY-MM-DD dalam zona waktu WIB (UTC+7) */
 function getTodayWIB(now = new Date()) {
@@ -77,8 +78,14 @@ export async function checkInAction(latitude, longitude, fotoCheckin = null, acc
     return { error: `Gagal mencatat absensi: ${insertError.message}` }
   }
 
+  // Sinkronisasi otomatis ke payroll jika record payroll periode ini sudah ada
+  const db = getDbClient(supabase)
+  await syncSingleEmployeePayrollByDate(db, user.id, todayStr)
+
   revalidatePath('/absensi')
   revalidatePath('/dashboard')
+  revalidatePath('/payroll')
+  revalidatePath('/rekap')
   return { success: true, status, menitTelat, potonganTelat }
 }
 
@@ -180,6 +187,9 @@ export async function manualAttendanceOverrideAction(formData) {
     return { error: `Gagal menyimpan data absensi: ${error.message}` }
   }
 
+  // Sinkronisasi otomatis ke payroll
+  await syncSingleEmployeePayrollByDate(db, employee_id, tanggal)
+
   revalidatePath('/absensi')
   revalidatePath('/dashboard')
   revalidatePath('/rekap')
@@ -203,6 +213,13 @@ export async function deleteAttendanceAction(attendanceId) {
 
   const db = getDbClient(supabase)
 
+  // Ambil data absensi sebelum dihapus untuk mengetahui employee_id dan tanggal
+  const { data: existingAtt } = await db
+    .from('attendance')
+    .select('employee_id, tanggal')
+    .eq('id', attendanceId)
+    .single()
+
   const { error } = await db
     .from('attendance')
     .delete()
@@ -210,6 +227,10 @@ export async function deleteAttendanceAction(attendanceId) {
 
   if (error) {
     return { error: `Gagal menghapus absensi: ${error.message}` }
+  }
+
+  if (existingAtt) {
+    await syncSingleEmployeePayrollByDate(db, existingAtt.employee_id, existingAtt.tanggal)
   }
 
   revalidatePath('/absensi')

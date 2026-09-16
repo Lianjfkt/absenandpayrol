@@ -3,8 +3,92 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { kalkulasiPayrollKaryawan, getPayrollPeriod } from '@/lib/utils/payroll'
+import { kalkulasiPayrollKaryawan, getPayrollPeriod, getPayrollPeriodForDate } from '@/lib/utils/payroll'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
+
+/**
+ * Helper: Sinkronisasi ulang record payroll satu karyawan secara real-time
+ */
+export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, periodeTahun) {
+  try {
+    const { data: emp } = await db.from('profiles').select('*').eq('id', employeeId).single()
+    if (!emp || emp.role === 'owner' || emp.status_aktif === false) return
+
+    const { data: existingPayroll } = await db
+      .from('payroll')
+      .select('id, adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
+      .eq('employee_id', employeeId)
+      .eq('periode_bulan', periodeBulan)
+      .eq('periode_tahun', periodeTahun)
+      .maybeSingle()
+
+    // Jangan timpa otomatis jika sudah berstatus 'sudah_dibayar'
+    if (existingPayroll && existingPayroll.status_pembayaran === 'sudah_dibayar') {
+      return
+    }
+
+    const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, periodeBulan, periodeTahun)
+    const { data: settings } = await db.from('settings').select('*').eq('id', 1).maybeSingle()
+    const currentSettings = settings || DEFAULT_SETTINGS
+
+    const [{ data: attendances }, { data: bonuses }, { data: activeLoans }] = await Promise.all([
+      db
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .gte('tanggal', empStartDate)
+        .lte('tanggal', empEndDate),
+      db
+        .from('bonus')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .eq('periode_bulan', periodeBulan)
+        .eq('periode_tahun', periodeTahun),
+      db
+        .from('loans')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .eq('status', 'aktif'),
+    ])
+
+    const adj = existingPayroll?.adjustment || 0
+
+    const calcResult = kalkulasiPayrollKaryawan({
+      employee: emp,
+      attendances: attendances || [],
+      bonuses: bonuses || [],
+      loans: activeLoans || [],
+      leaves: [],
+      settings: currentSettings,
+      adjustment: adj,
+      periodeBulan,
+      periodeTahun,
+    })
+
+    if (existingPayroll) {
+      await db.from('payroll').update({
+        ...calcResult,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existingPayroll.id)
+    }
+  } catch (err) {
+    console.error('Error in syncSingleEmployeePayroll:', err)
+  }
+}
+
+/**
+ * Helper: Sinkronisasi ulang payroll karyawan berdasarkan tanggal absensi
+ */
+export async function syncSingleEmployeePayrollByDate(db, employeeId, dateStr) {
+  try {
+    const { data: emp } = await db.from('profiles').select('*').eq('id', employeeId).single()
+    if (!emp || emp.role === 'owner') return
+    const { periodeBulan, periodeTahun } = getPayrollPeriodForDate(emp, dateStr)
+    await syncSingleEmployeePayroll(db, employeeId, periodeBulan, periodeTahun)
+  } catch (err) {
+    console.error('Error in syncSingleEmployeePayrollByDate:', err)
+  }
+}
 
 /**
  * Server action: Generate Payroll Otomatis untuk Semua Karyawan Aktif
@@ -79,8 +163,8 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
             .from('bonus')
             .select('*')
             .eq('employee_id', emp.id)
-            .gte('tanggal', empStartDate)
-            .lte('tanggal', empEndDate),
+            .eq('periode_bulan', periodeBulan)
+            .eq('periode_tahun', periodeTahun),
           db
             .from('loans')
             .select('*')
