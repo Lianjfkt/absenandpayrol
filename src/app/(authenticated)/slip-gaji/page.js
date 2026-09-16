@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 import { SlipActions } from '@/components/payroll/SlipActions'
+import { syncSingleEmployeePayroll } from '@/actions/payroll'
 
 export default async function SlipGajiKaryawanPage() {
   const supabase = await createClient()
@@ -17,9 +19,16 @@ export default async function SlipGajiKaryawanPage() {
     .eq('id', user.id)
     .single()
 
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const db = getDbClient(supabase)
+
+  // Sinkronisasi otomatis payroll berjalan karyawan jika belum lunas
+  await syncSingleEmployeePayroll(db, user.id, currentMonth, currentYear)
 
   // Ambil data payroll milik karyawan yang sedang login
-  const { data: slipList } = await supabase
+  const { data: slipList } = await db
     .from('payroll')
     .select('*')
     .eq('employee_id', user.id)

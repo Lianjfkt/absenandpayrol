@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
 import { RekapExportControls } from '@/components/rekap/RekapExportControls'
+import { syncAllActivePayrolls } from '@/actions/payroll'
 
 export default async function RekapLaporanPage({ searchParams }) {
   const params = await searchParams
@@ -21,6 +22,9 @@ export default async function RekapLaporanPage({ searchParams }) {
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
   const db = getDbClient(supabase)
+
+  // Sinkronisasi otomatis semua payroll aktif yang belum dibayar agar data selalu fresh & akurat
+  await syncAllActivePayrolls(db, currentMonth, currentYear)
 
   // Ambil data payroll dan setting kedai secara paralel
   const [{ data: rawPayrolls }, { data: settings }] = await Promise.all([

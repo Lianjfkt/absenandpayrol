@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { addBonusAction, deleteBonusAction } from '@/actions/bonus'
-import { updateAdjustmentAction } from '@/actions/payroll'
+import { updateAdjustmentAction, syncSingleEmployeePayroll } from '@/actions/payroll'
 import { SlipActions } from '@/components/payroll/SlipActions'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 
@@ -16,7 +16,24 @@ export default async function DetailPayrollPage({ params }) {
   const supabase = await createClient()
   const db = getDbClient(supabase)
 
-  // Ambil record payroll
+  // Ambil record payroll awal
+  const { data: initialPayroll } = await db
+    .from('payroll')
+    .select('*, profiles(*)')
+    .eq('id', id)
+    .single()
+
+  if (!initialPayroll) notFound()
+
+  if (initialPayroll.status_pembayaran !== 'sudah_dibayar') {
+    await syncSingleEmployeePayroll(
+      db,
+      initialPayroll.employee_id,
+      initialPayroll.periode_bulan,
+      initialPayroll.periode_tahun
+    )
+  }
+
   const { data: payroll } = await db
     .from('payroll')
     .select('*, profiles(*)')

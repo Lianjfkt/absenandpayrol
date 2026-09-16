@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { generatePayrollPeriodAction, updatePaymentStatusAction } from '@/actions/payroll'
+import { generatePayrollPeriodAction, updatePaymentStatusAction, syncAllActivePayrolls } from '@/actions/payroll'
 import { formatRupiah } from '@/lib/constants'
 import { getPayrollPeriod } from '@/lib/utils/payroll'
 
@@ -24,6 +24,9 @@ export default async function PayrollPage({ searchParams }) {
   if (ownerProfile?.role !== 'owner') redirect('/dashboard')
 
   const db = getDbClient(supabase)
+
+  // Sinkronisasi otomatis seluruh draft payroll aktif agar selalu fresh & akurat
+  await syncAllActivePayrolls(db, currentMonth, currentYear)
 
   // Ambil data payroll periode terpilih
   const { data: rawPayrollList } = await db

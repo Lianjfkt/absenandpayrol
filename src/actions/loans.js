@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { syncSingleEmployeePayrollByDate } from '@/actions/payroll'
 
 /**
  * Server Action: Owner mencatat kasbon baru karyawan
@@ -42,8 +43,11 @@ export async function createLoanAction(formData) {
     return { error: `Gagal mencatat kasbon: ${error.message}` }
   }
 
+  await syncSingleEmployeePayrollByDate(db, employee_id, tanggal_pinjam)
+
   revalidatePath('/kasbon')
   revalidatePath('/payroll')
+  revalidatePath('/rekap')
   return { success: true }
 }
 
@@ -61,6 +65,12 @@ export async function updateLoanStatusAction(loanId, status, sisaPinjamanBaru = 
 
   const db = getDbClient(supabase)
 
+  const { data: loan } = await db
+    .from('loans')
+    .select('employee_id, tanggal_pinjam')
+    .eq('id', loanId)
+    .single()
+
   const { error } = await db
     .from('loans')
     .update({
@@ -74,7 +84,14 @@ export async function updateLoanStatusAction(loanId, status, sisaPinjamanBaru = 
     return { error: `Gagal memperbarui status kasbon: ${error.message}` }
   }
 
+  if (loan) {
+    const todayStr = new Date().toISOString().split('T')[0]
+    await syncSingleEmployeePayrollByDate(db, loan.employee_id, todayStr)
+  }
+
   revalidatePath('/kasbon')
+  revalidatePath('/payroll')
+  revalidatePath('/rekap')
   return { success: true }
 }
 

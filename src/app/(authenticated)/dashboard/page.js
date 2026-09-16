@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
 import { OwnerAnalyticsView } from '@/components/dashboard/OwnerAnalyticsView'
 import { ROLES, formatRupiah, formatJam } from '@/lib/constants'
+import { getPayrollPeriod } from '@/lib/utils/payroll'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -20,12 +21,12 @@ export default async function DashboardPage() {
 
   const isOwner = profile?.role === ROLES.OWNER
   const db = isOwner ? getDbClient(supabase) : supabase
-  const todayStr = new Date().toISOString().split('T')[0]
-  const todayDay = new Date().getDay()
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const todayStr = now.toISOString().split('T')[0]
+  const todayDay = now.getDay()
   const isHariLibur = todayDay === profile?.hari_libur
-
-  // Monthly stats calculation (current month)
-  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
   // Data untuk Karyawan & Owner diambil secara paralel
   let todayAttendance = null
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
 
   if (user) {
     if (!isOwner) {
+      const { startDate: empStartDate } = getPayrollPeriod(profile, currentMonth, currentYear)
       const [todayAttRes, monthlyAttRes] = await Promise.all([
         supabase
           .from('attendance')
@@ -48,12 +50,12 @@ export default async function DashboardPage() {
           .from('attendance')
           .select('*')
           .eq('employee_id', user.id)
-          .gte('tanggal', currentMonthStart),
+          .gte('tanggal', empStartDate),
       ])
       todayAttendance = todayAttRes.data
       monthlyAttendance = monthlyAttRes.data || []
     } else {
-      const [empRes, todayAttDataRes, mAttDataRes, loansDataRes] = await Promise.all([
+      const [empRes, todayAttDataRes, loansDataRes] = await Promise.all([
         db
           .from('profiles')
           .select('*')
@@ -62,10 +64,6 @@ export default async function DashboardPage() {
           .from('attendance')
           .select('*, profiles:employee_id(nama)')
           .eq('tanggal', todayStr),
-        db
-          .from('attendance')
-          .select('*')
-          .gte('tanggal', currentMonthStart),
         db
           .from('loans')
           .select('*')
@@ -76,8 +74,20 @@ export default async function DashboardPage() {
       allEmployees = rawProfiles.filter(
         (p) => p.role !== 'owner' && p.status_aktif !== false
       )
+
+      let earliestStartDate = todayStr
+      allEmployees.forEach((emp) => {
+        const { startDate } = getPayrollPeriod(emp, currentMonth, currentYear)
+        if (startDate < earliestStartDate) earliestStartDate = startDate
+      })
+
+      const { data: mAttData } = await db
+        .from('attendance')
+        .select('*')
+        .gte('tanggal', earliestStartDate)
+
       todayAllAttendance = todayAttDataRes.data || []
-      ownerMonthlyAttendance = mAttDataRes.data || []
+      ownerMonthlyAttendance = mAttData || []
       activeLoans = loansDataRes.data || []
     }
   }
@@ -187,6 +197,8 @@ export default async function DashboardPage() {
             employees={allEmployees}
             monthlyAttendance={ownerMonthlyAttendance}
             activeLoans={activeLoans}
+            currentMonth={currentMonth}
+            currentYear={currentYear}
           />
 
           {/* Status Presensi Hari Ini */}

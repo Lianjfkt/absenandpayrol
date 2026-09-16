@@ -70,9 +70,39 @@ export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, pe
         ...calcResult,
         updated_at: new Date().toISOString(),
       }).eq('id', existingPayroll.id)
+    } else {
+      await db.from('payroll').insert({
+        ...calcResult,
+        status: 'draft',
+        status_pembayaran: 'belum_dibayar',
+        tanggal_dibayar: null,
+        keterangan_adjustment: null,
+        updated_at: new Date().toISOString(),
+      })
     }
   } catch (err) {
     console.error('Error in syncSingleEmployeePayroll:', err)
+  }
+}
+
+/**
+ * Helper: Sinkronisasi seluruh payroll karyawan aktif untuk satu periode secara real-time
+ */
+export async function syncAllActivePayrolls(db, periodeBulan, periodeTahun) {
+  try {
+    const { data: allProfiles } = await db
+      .from('profiles')
+      .select('*')
+      .neq('role', 'owner')
+      .eq('status_aktif', true)
+
+    if (!allProfiles || allProfiles.length === 0) return
+
+    await Promise.all(
+      allProfiles.map((emp) => syncSingleEmployeePayroll(db, emp.id, periodeBulan, periodeTahun))
+    )
+  } catch (err) {
+    console.error('Error in syncAllActivePayrolls:', err)
   }
 }
 

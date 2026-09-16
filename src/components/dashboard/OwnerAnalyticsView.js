@@ -3,25 +3,41 @@
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatRupiah } from '@/lib/constants'
+import { getPayrollPeriod } from '@/lib/utils/payroll'
 
 export function OwnerAnalyticsView({
   employees = [],
   monthlyAttendance = [],
   activeLoans = [],
+  currentMonth,
+  currentYear,
 }) {
-  // 1. Hitung total metrik kehadiran bulan berjalan
-  const totalHadir = monthlyAttendance.filter((a) => a.status === 'hadir').length
-  const totalTelat = monthlyAttendance.filter((a) => a.status === 'telat').length
-  const totalOff = monthlyAttendance.filter((a) => a.status === 'off').length
+  const now = new Date()
+  const cMonth = currentMonth || now.getMonth() + 1
+  const cYear = currentYear || now.getFullYear()
+
+  // Ambil attendance yang masuk ke dalam periode aktif masing-masing karyawan
+  const periodAttendance = monthlyAttendance.filter((a) => {
+    const emp = employees.find((e) => e.id === a.employee_id)
+    if (!emp) return true
+    const { startDate, endDate } = getPayrollPeriod(emp, cMonth, cYear)
+    return a.tanggal >= startDate && a.tanggal <= endDate
+  })
+
+  // 1. Hitung total metrik kehadiran periode berjalan
+  const totalHadir = periodAttendance.filter((a) => a.status === 'hadir').length
+  const totalTelat = periodAttendance.filter((a) => a.status === 'telat').length
+  const totalOff = periodAttendance.filter((a) => a.status === 'off').length
   const totalEvents = Math.max(1, totalHadir + totalTelat + totalOff)
 
   const pctHadir = Math.round((totalHadir / totalEvents) * 100)
   const pctTelat = Math.round((totalTelat / totalEvents) * 100)
   const pctOff = Math.round((totalOff / totalEvents) * 100)
 
-  // 2. Ranking Staf berdasarkan Kedisiplinan
+  // 2. Ranking Staf berdasarkan Kedisiplinan dalam periode berjalan
   const staffStats = employees.map((emp) => {
-    const empAtt = monthlyAttendance.filter((a) => a.employee_id === emp.id)
+    const { startDate, endDate } = getPayrollPeriod(emp, cMonth, cYear)
+    const empAtt = monthlyAttendance.filter((a) => a.employee_id === emp.id && a.tanggal >= startDate && a.tanggal <= endDate)
     const empHadir = empAtt.filter((a) => a.status === 'hadir').length
     const empTelat = empAtt.filter((a) => a.status === 'telat').length
     const empOff = empAtt.filter((a) => a.status === 'off').length
@@ -48,7 +64,7 @@ export function OwnerAnalyticsView({
 
   // 3. Proyeksi Anggaran Penggajian Berjalan
   const totalGajiPokokSemua = employees.reduce((acc, e) => acc + (e.gaji_pokok || 0), 0)
-  const totalPotonganBerjalan = monthlyAttendance.reduce((acc, a) => acc + (a.potongan_telat || 0), 0)
+  const totalPotonganBerjalan = periodAttendance.reduce((acc, a) => acc + (a.potongan_telat || 0), 0)
   const totalKasbonBeredar = activeLoans.reduce((acc, l) => acc + (l.sisa_pinjaman || 0), 0)
 
   return (
