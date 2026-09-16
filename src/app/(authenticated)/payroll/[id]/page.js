@@ -11,6 +11,9 @@ import { updateAdjustmentAction, syncSingleEmployeePayroll } from '@/actions/pay
 import { SlipActions } from '@/components/payroll/SlipActions'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DetailPayrollPage({ params }) {
   const { id } = await params
   const supabase = await createClient()

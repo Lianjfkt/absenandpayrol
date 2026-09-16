@@ -7,6 +7,9 @@ import { formatRupiah, formatTanggal } from '@/lib/constants'
 import { SlipActions } from '@/components/payroll/SlipActions'
 import { syncSingleEmployeePayroll } from '@/actions/payroll'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function SlipGajiKaryawanPage() {
   const supabase = await createClient()
 

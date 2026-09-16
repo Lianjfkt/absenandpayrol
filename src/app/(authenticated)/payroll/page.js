@@ -9,6 +9,9 @@ import { generatePayrollPeriodAction, updatePaymentStatusAction, syncAllActivePa
 import { formatRupiah } from '@/lib/constants'
 import { getPayrollPeriod } from '@/lib/utils/payroll'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function PayrollPage({ searchParams }) {
   const params = await searchParams
   const now = new Date()

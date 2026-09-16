@@ -4,6 +4,9 @@ import { redirect, notFound } from 'next/navigation'
 import { RekapKaryawanView } from '@/components/rekap/RekapKaryawanView'
 import { getPayrollPeriod, kalkulasiPayrollKaryawan } from '@/lib/utils/payroll'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function RekapKaryawanPage({ params, searchParams }) {
   const { employeeId } = await params
   const sp = await searchParams

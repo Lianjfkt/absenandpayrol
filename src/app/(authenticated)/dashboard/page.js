@@ -9,6 +9,9 @@ import { OwnerAnalyticsView } from '@/components/dashboard/OwnerAnalyticsView'
 import { ROLES, formatRupiah, formatJam } from '@/lib/constants'
 import { getPayrollPeriod } from '@/lib/utils/payroll'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DashboardPage() {
   const supabase = await createClient()
 

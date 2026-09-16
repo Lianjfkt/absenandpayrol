@@ -7,6 +7,9 @@ import { formatRupiah } from '@/lib/constants'
 import { RekapExportControls } from '@/components/rekap/RekapExportControls'
 import { syncAllActivePayrolls } from '@/actions/payroll'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function RekapLaporanPage({ searchParams }) {
   const params = await searchParams
   const now = new Date()

@@ -37,16 +37,25 @@ export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
     }
   }
 
-  // endDate   = (tglGajian - 1) di bulan gajian
-  // startDate = tglGajian di bulan SEBELUMNYA
+  // Standar: periode gajian bulan ini berakhir sehari sebelum tgl gajian di bulan ini
   const endDay = String(tglGajian - 1).padStart(2, '0')
-  const endDate = `${periodeTahun}-${mm}-${endDay}`
-
+  const endDateStandard = `${periodeTahun}-${mm}-${endDay}`
   const prevMonth = periodeBulan === 1 ? 12 : periodeBulan - 1
   const prevYear  = periodeBulan === 1 ? periodeTahun - 1 : periodeTahun
-  const startDate = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
+  const startDateStandard = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
 
-  return { startDate, endDate, tglGajian }
+  // Jika endDateStandard sebelum tanggal_mulai (misal karyawan baru gabung di bulan ini),
+  // maka periode aktif bulan ini dimulai dari tanggal_mulai / tglGajian bulan ini s/d tgl gajian bulan berikutnya
+  if (tanggalMulai && endDateStandard < tanggalMulai) {
+    const nextMonth = periodeBulan === 12 ? 1 : periodeBulan + 1
+    const nextYear = periodeBulan === 12 ? periodeTahun + 1 : periodeTahun
+    const nextEndDay = String(tglGajian - 1).padStart(2, '0')
+    const startDate = `${periodeTahun}-${mm}-${String(tglGajian).padStart(2, '0')}`
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${nextEndDay}`
+    return { startDate, endDate, tglGajian }
+  }
+
+  return { startDate: startDateStandard, endDate: endDateStandard, tglGajian }
 }
 
 /**
