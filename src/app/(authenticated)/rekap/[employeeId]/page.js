@@ -61,7 +61,7 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
   ])
 
   let activePayroll = payroll
-  if (payroll && payroll.status_pembayaran !== 'sudah_dibayar') {
+  if (!payroll || payroll.status_pembayaran !== 'sudah_dibayar') {
     const [{ data: bonuses }, { data: activeLoans }] = await Promise.all([
       db
         .from('bonus')
@@ -83,23 +83,32 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       loans: activeLoans || [],
       leaves: [],
       settings: settings || {},
-      adjustment: payroll.adjustment || 0,
+      adjustment: payroll?.adjustment || 0,
       periodeBulan: currentMonth,
       periodeTahun: currentYear,
     })
 
-    if (
-      freshPayroll.total_gaji !== payroll.total_gaji ||
-      freshPayroll.total_potongan_telat !== payroll.total_potongan_telat ||
-      freshPayroll.total_hari_telat !== payroll.total_hari_telat ||
-      freshPayroll.total_hari_off !== payroll.total_hari_off ||
-      freshPayroll.total_hari_hadir !== payroll.total_hari_hadir
-    ) {
+    if (payroll) {
       await db.from('payroll').update({
         ...freshPayroll,
         updated_at: new Date().toISOString(),
       }).eq('id', payroll.id)
       activePayroll = { ...payroll, ...freshPayroll }
+    } else {
+      const { data: inserted } = await db.from('payroll').insert({
+        ...freshPayroll,
+        status: 'draft',
+        status_pembayaran: 'belum_dibayar',
+        tanggal_dibayar: null,
+        keterangan_adjustment: null,
+        updated_at: new Date().toISOString(),
+      }).select().single()
+      activePayroll = inserted || {
+        ...freshPayroll,
+        status_pembayaran: 'belum_dibayar',
+        tanggal_dibayar: null,
+        keterangan_adjustment: null,
+      }
     }
   }
 

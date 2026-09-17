@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { generatePayrollPeriodAction, updatePaymentStatusAction, syncAllActivePayrolls } from '@/actions/payroll'
+import { generatePayrollPeriodAction, updatePaymentStatusAction, getLivePayrollList } from '@/actions/payroll'
 import { formatRupiah } from '@/lib/constants'
 import { getPayrollPeriod } from '@/lib/utils/payroll'
 
@@ -28,22 +28,8 @@ export default async function PayrollPage({ searchParams }) {
 
   const db = getDbClient(supabase)
 
-  // Sinkronisasi otomatis seluruh draft payroll aktif agar selalu fresh & akurat
-  await syncAllActivePayrolls(db, currentMonth, currentYear)
-
-  // Ambil data payroll periode terpilih
-  const { data: rawPayrollList } = await db
-    .from('payroll')
-    .select('*, profiles:employee_id(nama, jabatan, tanggal_mulai, status_aktif, role)')
-    .eq('periode_bulan', currentMonth)
-    .eq('periode_tahun', currentYear)
-    .order('created_at', { ascending: true })
-
-  const payrollList = (rawPayrollList || []).filter((item) => {
-    if (item.profiles?.role === 'owner') return false
-    if (item.profiles?.status_aktif === false && item.status_pembayaran !== 'sudah_dibayar') return false
-    return true
-  })
+  // Hitung live payroll secara otomatis & real-time dari data absensi, kasbon, dan bonus terkini
+  const { payrollList } = await getLivePayrollList(db, currentMonth, currentYear)
 
   const totalPayrollSemua = payrollList?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
 

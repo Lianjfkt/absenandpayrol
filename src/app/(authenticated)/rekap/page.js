@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { formatRupiah } from '@/lib/constants'
 import { RekapExportControls } from '@/components/rekap/RekapExportControls'
-import { syncAllActivePayrolls } from '@/actions/payroll'
+import { getLivePayrollList } from '@/actions/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -26,28 +26,8 @@ export default async function RekapLaporanPage({ searchParams }) {
 
   const db = getDbClient(supabase)
 
-  // Sinkronisasi otomatis semua payroll aktif yang belum dibayar agar data selalu fresh & akurat
-  await syncAllActivePayrolls(db, currentMonth, currentYear)
-
-  // Ambil data payroll dan setting kedai secara paralel
-  const [{ data: rawPayrolls }, { data: settings }] = await Promise.all([
-    db
-      .from('payroll')
-      .select('*, profiles:employee_id(nama, jabatan, status_aktif, role)')
-      .eq('periode_bulan', currentMonth)
-      .eq('periode_tahun', currentYear),
-    db
-      .from('settings')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle(),
-  ])
-
-  const payrolls = (rawPayrolls || []).filter((p) => {
-    if (p.profiles?.role === 'owner') return false
-    if (p.profiles?.status_aktif === false && p.status_pembayaran !== 'sudah_dibayar') return false
-    return true
-  })
+  // Hitung live rekap payroll secara real-time dari data absensi, kasbon, dan bonus terkini
+  const { payrollList: payrolls, settings } = await getLivePayrollList(db, currentMonth, currentYear)
 
   const totalPengeluaran = payrolls?.reduce((acc, p) => acc + p.total_gaji, 0) || 0
   const totalPotongan = payrolls?.reduce((acc, p) => acc + (p.total_potongan_telat + p.total_potongan_off + (p.total_potongan_kasbon || 0)), 0) || 0

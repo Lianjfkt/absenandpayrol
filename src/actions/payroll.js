@@ -107,6 +107,127 @@ export async function syncAllActivePayrolls(db, periodeBulan, periodeTahun) {
 }
 
 /**
+ * Helper: Menghitung payroll secara LIVE real-time dan otomatis menyinkronkan ke database
+ * sehingga halaman Payroll dan Rekap SELALU menampilkan kalkulasi terkini tanpa perlu klik generate manual.
+ */
+export async function getLivePayrollList(db, currentMonth, currentYear) {
+  const [{ data: allProfiles }, { data: settings }] = await Promise.all([
+    db.from('profiles').select('*').order('created_at', { ascending: true }),
+    db.from('settings').select('*').eq('id', 1).maybeSingle(),
+  ])
+
+  const currentSettings = settings || DEFAULT_SETTINGS
+  const employees = (allProfiles || []).filter(
+    (p) => p.role !== 'owner' && p.status_aktif !== false
+  )
+
+  if (employees.length === 0) {
+    return { payrollList: [], settings: currentSettings }
+  }
+
+  const payrollList = await Promise.all(
+    employees.map(async (emp) => {
+      const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, currentMonth, currentYear)
+
+      const [
+        { data: attendances },
+        { data: bonuses },
+        { data: activeLoans },
+        { data: existingPayroll }
+      ] = await Promise.all([
+        db
+          .from('attendance')
+          .select('*')
+          .eq('employee_id', emp.id)
+          .gte('tanggal', empStartDate)
+          .lte('tanggal', empEndDate),
+        db
+          .from('bonus')
+          .select('*')
+          .eq('employee_id', emp.id)
+          .eq('periode_bulan', currentMonth)
+          .eq('periode_tahun', currentYear),
+        db
+          .from('loans')
+          .select('*')
+          .eq('employee_id', emp.id)
+          .eq('status', 'aktif'),
+        db
+          .from('payroll')
+          .select('*')
+          .eq('employee_id', emp.id)
+          .eq('periode_bulan', currentMonth)
+          .eq('periode_tahun', currentYear)
+          .maybeSingle(),
+      ])
+
+      // Jika sudah dibayar, gunakan snapshot data yang sudah dibayar
+      if (existingPayroll && existingPayroll.status_pembayaran === 'sudah_dibayar') {
+        return {
+          ...existingPayroll,
+          profiles: emp,
+        }
+      }
+
+      const adj = existingPayroll?.adjustment || 0
+      const calcResult = kalkulasiPayrollKaryawan({
+        employee: emp,
+        attendances: attendances || [],
+        bonuses: bonuses || [],
+        loans: activeLoans || [],
+        leaves: [],
+        settings: currentSettings,
+        adjustment: adj,
+        periodeBulan: currentMonth,
+        periodeTahun: currentYear,
+      })
+
+      let payrollId = existingPayroll?.id
+
+      // Upsert ke database secara otomatis agar record payroll selalu sinkron
+      try {
+        if (existingPayroll) {
+          await db
+            .from('payroll')
+            .update({
+              ...calcResult,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingPayroll.id)
+        } else {
+          const { data: newPayroll } = await db
+            .from('payroll')
+            .insert({
+              ...calcResult,
+              status: 'draft',
+              status_pembayaran: 'belum_dibayar',
+              tanggal_dibayar: null,
+              keterangan_adjustment: null,
+              updated_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+          payrollId = newPayroll?.id
+        }
+      } catch (e) {
+        console.error('Error auto-syncing payroll record:', e)
+      }
+
+      return {
+        ...calcResult,
+        id: payrollId || `temp-${emp.id}`,
+        status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
+        tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
+        keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
+        profiles: emp,
+      }
+    })
+  )
+
+  return { payrollList, settings: currentSettings }
+}
+
+/**
  * Helper: Sinkronisasi ulang payroll karyawan berdasarkan tanggal absensi
  */
 export async function syncSingleEmployeePayrollByDate(db, employeeId, dateStr) {
