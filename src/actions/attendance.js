@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { isDalamRadius } from '@/lib/utils/geo'
-import { tentukanStatusAbsensi } from '@/lib/utils/attendance'
+import { tentukanStatusAbsensi, hitungPotonganTelat } from '@/lib/utils/attendance'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 import { syncSingleEmployeePayrollByDate } from '@/actions/payroll'
 
@@ -86,6 +86,7 @@ export async function checkInAction(latitude, longitude, fotoCheckin = null, acc
   revalidatePath('/dashboard')
   revalidatePath('/payroll')
   revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true, status, menitTelat, potonganTelat }
 }
 
@@ -145,12 +146,21 @@ export async function manualAttendanceOverrideAction(formData) {
   const status = formData.get('status') || ATTENDANCE_STATUS.HADIR
   const jam_masuk = formData.get('jam_masuk')
   const jam_pulang = formData.get('jam_pulang')
-  const menit_telat = parseInt(formData.get('menit_telat') || '0', 10)
-  const potongan_telat = parseInt(formData.get('potongan_telat') || '0', 10)
+  let menit_telat = parseInt(formData.get('menit_telat') || '0', 10)
+  let potongan_telat = parseInt(formData.get('potongan_telat') || '0', 10)
   const catatan = formData.get('catatan') || 'Input manual oleh owner'
 
   if (!employee_id || !tanggal) {
     return { error: 'Karyawan dan Tanggal wajib diisi.' }
+  }
+
+  // Jika status Telat tapi potongan belum dihitung atau 0
+  if (status === ATTENDANCE_STATUS.TELAT && (!potongan_telat || potongan_telat === 0)) {
+    const { data: settings } = await db.from('settings').select('*').eq('id', 1).maybeSingle()
+    const currentSettings = settings || DEFAULT_SETTINGS
+    if (menit_telat > (currentSettings.toleransi_telat_menit ?? 5)) {
+      potongan_telat = hitungPotonganTelat(menit_telat, currentSettings)
+    }
   }
 
   // Konversi jam masuk & jam pulang ke ISO timestamp dengan offset WIB (+07:00)
@@ -194,6 +204,7 @@ export async function manualAttendanceOverrideAction(formData) {
   revalidatePath('/dashboard')
   revalidatePath('/rekap')
   revalidatePath('/payroll')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -237,6 +248,7 @@ export async function deleteAttendanceAction(attendanceId) {
   revalidatePath('/dashboard')
   revalidatePath('/rekap')
   revalidatePath('/payroll')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 

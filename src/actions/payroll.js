@@ -242,6 +242,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
 
   revalidatePath('/payroll')
   revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -353,6 +354,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
   revalidatePath('/payroll')
   revalidatePath('/kasbon')
   revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -403,5 +405,7 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
   }
 
   revalidatePath('/payroll')
+  revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true }
 }

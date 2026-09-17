@@ -4,48 +4,30 @@ import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000
 
 /**
- * Konversi Date ke representasi waktu WIB (UTC+7) sebagai Date object.
- * Hasilnya adalah Date yang "pura-pura" lokal agar getHours/getDay benar dalam WIB.
- */
-function toWIBDate(date) {
-  return new Date(date.getTime() + WIB_OFFSET_MS)
-}
-
-/**
  * Menghitung selisih menit antara jam check-in aktual dengan jam masuk standar.
- * Semua perbandingan dilakukan dalam zona waktu WIB (UTC+7) secara eksplisit
- * agar konsisten di server manapun (termasuk server UTC seperti Vercel).
- * @param {Date|string} checkInTime - Waktu check in aktual (UTC)
+ * Semua perbandingan dilakukan dalam zona waktu WIB (UTC+7) secara deterministik
+ * tanpa terpengaruh zona waktu lokal server hosting.
+ * @param {Date|string} checkInTime - Waktu check in aktual (UTC / ISO string)
  * @param {string} jamMasukStr - Format "HH:mm" atau "HH:mm:ss" (default: "07:00")
  * @returns {number} Menit keterlambatan (>= 0)
  */
 export function hitungMenitTelat(checkInTime, jamMasukStr = '07:00') {
   const checkIn = new Date(checkInTime)
-  const [jam, menit] = jamMasukStr.split(':').map(Number)
+  const [targetJam, targetMenit] = jamMasukStr.split(':').map(Number)
 
-  // Konversi waktu check-in ke WIB untuk mendapat jam/menit yang benar
-  const checkInWIB = toWIBDate(checkIn)
+  // Konversi waktu check-in ke epoch WIB untuk mendapatkan tanggal WIB via UTC getters
+  const wibEpoch = checkIn.getTime() + WIB_OFFSET_MS
+  const wibDate = new Date(wibEpoch)
 
-  // Buat target masuk: sama tanggal WIB-nya, tapi jam sesuai jam_masuk
-  // Gunakan UTC midnight WIB (ambil tanggal WIB lalu set jam target dalam UTC ekuivalen)
-  const wibMidnightUTC = new Date(checkIn)
-  wibMidnightUTC.setUTCHours(0 - 7, 0, 0, 0) // 00:00 WIB = 17:00 UTC hari sebelumnya
-  // Ambil tanggal WIB-nya
-  const checkInWIBDateOnly = new Date(
-    checkInWIB.getUTCFullYear(),
-    checkInWIB.getUTCMonth(),
-    checkInWIB.getUTCDate(),
-    0, 0, 0, 0
-  )
-  // Target masuk dalam WIB: tanggal WIB + jam target
-  const targetMasukWIB = new Date(checkInWIBDateOnly)
-  targetMasukWIB.setHours(jam, menit, 0, 0)
+  const wibYear = wibDate.getUTCFullYear()
+  const wibMonth = wibDate.getUTCMonth()
+  const wibDay = wibDate.getUTCDate()
 
-  // Konversi kedua waktu ke momen UTC untuk dibandingkan
-  const checkInMs = checkIn.getTime()
-  const targetMs = targetMasukWIB.getTime() - WIB_OFFSET_MS
+  // Target masuk: pada tanggal WIB yang sama, jam targetJam:targetMenit WIB
+  // Di UTC, waktu target adalah Date.UTC(wibYear, wibMonth, wibDay, targetJam - 7, targetMenit, 0, 0)
+  const targetEpoch = Date.UTC(wibYear, wibMonth, wibDay, targetJam - 7, targetMenit, 0, 0)
 
-  const diffMs = checkInMs - targetMs
+  const diffMs = checkIn.getTime() - targetEpoch
   if (diffMs <= 0) return 0
 
   return Math.floor(diffMs / (1000 * 60))
@@ -100,8 +82,9 @@ export function hitungPotonganTelat(menitTelat, settings = DEFAULT_SETTINGS) {
 export function tentukanStatusAbsensi(checkInTime, employeeHariLibur, settings = DEFAULT_SETTINGS) {
   const checkIn = new Date(checkInTime)
   // Gunakan WIB untuk menentukan hari dalam seminggu
-  const checkInWIB = toWIBDate(checkIn)
-  const dayOfWeek = checkInWIB.getUTCDay() // 0 = Minggu, 1 = Senin, ...
+  const wibEpoch = checkIn.getTime() + WIB_OFFSET_MS
+  const wibDate = new Date(wibEpoch)
+  const dayOfWeek = wibDate.getUTCDay() // 0 = Minggu, 1 = Senin, ...
   const isHariLibur = dayOfWeek === employeeHariLibur
 
   const menitTelat = hitungMenitTelat(checkIn, settings.jam_masuk || '07:00')

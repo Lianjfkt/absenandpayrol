@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '../constants.js'
+import { hitungPotonganTelat } from './attendance.js'
 
 /**
  * Menghitung start date dan end date periode payroll untuk satu karyawan.
@@ -44,22 +45,12 @@ export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
   const prevYear  = periodeBulan === 1 ? periodeTahun - 1 : periodeTahun
   const startDateStandard = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
 
-  // Jika endDateStandard sebelum tanggal_mulai (misal karyawan baru gabung di bulan ini),
-  // maka periode aktif bulan ini dimulai dari tanggal_mulai / tglGajian bulan ini s/d tgl gajian bulan berikutnya
-  if (tanggalMulai && endDateStandard < tanggalMulai) {
-    const nextMonth = periodeBulan === 12 ? 1 : periodeBulan + 1
-    const nextYear = periodeBulan === 12 ? periodeTahun + 1 : periodeTahun
-    const nextEndDay = String(tglGajian - 1).padStart(2, '0')
-    const startDate = `${periodeTahun}-${mm}-${String(tglGajian).padStart(2, '0')}`
-    const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${nextEndDay}`
-    return { startDate, endDate, tglGajian }
-  }
-
   return { startDate: startDateStandard, endDate: endDateStandard, tglGajian }
 }
 
 /**
  * Menentukan periode payroll (bulan dan tahun gajian) untuk tanggal absensi tertentu.
+ * Konsisten 100% dengan getPayrollPeriod.
  * @param {object} employee - profil karyawan (tanggal_mulai)
  * @param {string} dateStr - tanggal format "YYYY-MM-DD"
  * @returns {{ periodeBulan: number, periodeTahun: number }}
@@ -155,7 +146,11 @@ export function kalkulasiPayrollKaryawan({
           totalHariLiburMasuk++
           if (att.status === ATTENDANCE_STATUS.TELAT) {
             totalHariTelat++
-            totalPotonganTelat += Number(att.potongan_telat || 0)
+            let pTelat = Number(att.potongan_telat)
+            if (isNaN(pTelat) || (pTelat === 0 && (att.menit_telat || 0) > (settings.toleransi_telat_menit ?? 5))) {
+              pTelat = hitungPotonganTelat(att.menit_telat || 0, settings)
+            }
+            totalPotonganTelat += (pTelat || 0)
           } else {
             totalHariHadir++
           }
@@ -165,7 +160,11 @@ export function kalkulasiPayrollKaryawan({
           totalHariHadir++
         } else if (att.status === ATTENDANCE_STATUS.TELAT) {
           totalHariTelat++
-          totalPotonganTelat += Number(att.potongan_telat || 0)
+          let pTelat = Number(att.potongan_telat)
+          if (isNaN(pTelat) || (pTelat === 0 && (att.menit_telat || 0) > (settings.toleransi_telat_menit ?? 5))) {
+            pTelat = hitungPotonganTelat(att.menit_telat || 0, settings)
+          }
+          totalPotonganTelat += (pTelat || 0)
         } else if (att.status === ATTENDANCE_STATUS.OFF) {
           totalHariOff++
         }

@@ -40,10 +40,11 @@ export async function addBonusAction(formData) {
     return { error: `Gagal menambah bonus: ${error.message}` }
   }
 
-  await syncSingleEmployeePayroll(db, employee_id, periode_bulan, periodeTahun)
+  await syncSingleEmployeePayroll(db, employee_id, periode_bulan, periode_tahun)
 
   revalidatePath('/payroll')
   revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -83,6 +84,7 @@ export async function deleteBonusAction(bonusId) {
 
   revalidatePath('/payroll')
   revalidatePath('/rekap')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 
