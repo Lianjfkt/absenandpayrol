@@ -38,14 +38,29 @@ export function getPayrollPeriod(employee, periodeBulan, periodeTahun) {
     }
   }
 
-  // Standar: periode gajian bulan ini berakhir sehari sebelum tgl gajian di bulan ini
-  const endDay = String(tglGajian - 1).padStart(2, '0')
-  const endDateStandard = `${periodeTahun}-${mm}-${endDay}`
-  const prevMonth = periodeBulan === 1 ? 12 : periodeBulan - 1
-  const prevYear  = periodeBulan === 1 ? periodeTahun - 1 : periodeTahun
-  const startDateStandard = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(tglGajian).padStart(2, '0')}`
-
-  return { startDate: startDateStandard, endDate: endDateStandard, tglGajian }
+  // Jika karyawan bergabung di paruh awal bulan (tglGajian <= 15, misal Sinta tgl 7):
+  // Periode bulan M berjalan dari tglGajian bulan M s/d (tglGajian - 1) bulan M+1.
+  // Contoh Bulan 9: 2026-09-07 s/d 2026-10-06.
+  if (tglGajian <= 15) {
+    const nextMonth = periodeBulan === 12 ? 1 : periodeBulan + 1
+    const nextYear = periodeBulan === 12 ? periodeTahun + 1 : periodeTahun
+    const endDay = String(tglGajian - 1).padStart(2, '0')
+    const startDay = String(tglGajian).padStart(2, '0')
+    const startDate = `${periodeTahun}-${mm}-${startDay}`
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${endDay}`
+    return { startDate, endDate, tglGajian }
+  } else {
+    // Jika karyawan bergabung di paruh akhir bulan (tglGajian > 15, misal Diki tgl 18):
+    // Periode bulan M berjalan dari tglGajian bulan M-1 s/d (tglGajian - 1) bulan M.
+    // Contoh Bulan 9: 2026-08-18 s/d 2026-09-17.
+    const prevMonth = periodeBulan === 1 ? 12 : periodeBulan - 1
+    const prevYear  = periodeBulan === 1 ? periodeTahun - 1 : periodeTahun
+    const endDay = String(tglGajian - 1).padStart(2, '0')
+    const startDay = String(tglGajian).padStart(2, '0')
+    const startDate = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${startDay}`
+    const endDate = `${periodeTahun}-${mm}-${endDay}`
+    return { startDate, endDate, tglGajian }
+  }
 }
 
 /**
@@ -71,15 +86,28 @@ export function getPayrollPeriodForDate(employee, dateStr) {
     return { periodeBulan: month, periodeTahun: year }
   }
 
-  if (day >= tglGajian) {
-    // Masuk periode gajian bulan berikutnya
-    if (month === 12) {
-      return { periodeBulan: 1, periodeTahun: year + 1 }
+  if (tglGajian <= 15) {
+    // Untuk tglGajian <= 15 (misal Sinta tgl 7):
+    // Jika day >= 7 (misal 17 Sep), maka masuk periode Bulan 9 (2026-09-07 s/d 2026-10-06).
+    // Jika day < 7 (misal 5 Sep), maka masuk periode Bulan 8 (2026-08-07 s/d 2026-09-06).
+    if (day >= tglGajian) {
+      return { periodeBulan: month, periodeTahun: year }
+    } else {
+      const prevMonth = month === 1 ? 12 : month - 1
+      const prevYear = month === 1 ? year - 1 : year
+      return { periodeBulan: prevMonth, periodeTahun: prevYear }
     }
-    return { periodeBulan: month + 1, periodeTahun: year }
   } else {
-    // Masuk periode gajian bulan ini
-    return { periodeBulan: month, periodeTahun: year }
+    // Untuk tglGajian > 15 (misal Diki tgl 18):
+    // Jika day < 18 (misal 17 Sep), maka masuk periode Bulan 9 (2026-08-18 s/d 2026-09-17).
+    // Jika day >= 18 (misal 18 Sep), maka masuk periode Bulan 10 (2026-09-18 s/d 2026-10-17).
+    if (day < tglGajian) {
+      return { periodeBulan: month, periodeTahun: year }
+    } else {
+      const nextMonth = month === 12 ? 1 : month + 1
+      const nextYear = month === 12 ? year + 1 : year
+      return { periodeBulan: nextMonth, periodeTahun: nextYear }
+    }
   }
 }
 
