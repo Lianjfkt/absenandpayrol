@@ -245,3 +245,57 @@ export function kalkulasiPayrollKaryawan({
     periode_end: endDate,
   }
 }
+
+/**
+ * Helper untuk memastikan payload yang dikirim ke Supabase hanya berisi field
+ * yang valid di tabel `public.payroll` (menghindari error column not found).
+ */
+export function sanitizePayrollPayload(calcResult = {}) {
+  const {
+    employee_id,
+    periode_bulan,
+    periode_tahun,
+    gaji_pokok,
+    total_hari_hadir,
+    total_hari_telat,
+    total_hari_off,
+    total_hari_libur_masuk,
+    total_potongan_telat,
+    total_potongan_off,
+    total_potongan_kasbon,
+    total_bonus_libur,
+    total_bonus_manual,
+    adjustment,
+    keterangan_adjustment,
+    total_gaji,
+    status,
+    status_pembayaran,
+    tanggal_dibayar,
+    updated_at,
+  } = calcResult
+
+  const payload = {}
+
+  if (employee_id !== undefined) payload.employee_id = employee_id
+  if (periode_bulan !== undefined) payload.periode_bulan = Number(periode_bulan)
+  if (periode_tahun !== undefined) payload.periode_tahun = Number(periode_tahun)
+  if (gaji_pokok !== undefined) payload.gaji_pokok = Number(gaji_pokok)
+  if (total_hari_hadir !== undefined) payload.total_hari_hadir = Number(total_hari_hadir)
+  if (total_hari_telat !== undefined) payload.total_hari_telat = Number(total_hari_telat)
+  if (total_hari_off !== undefined) payload.total_hari_off = Number(total_hari_off)
+  if (total_hari_libur_masuk !== undefined) payload.total_hari_libur_masuk = Number(total_hari_libur_masuk)
+  if (total_potongan_telat !== undefined) payload.total_potongan_telat = Number(total_potongan_telat)
+  if (total_potongan_off !== undefined) payload.total_potongan_off = Number(total_potongan_off)
+  if (total_potongan_kasbon !== undefined) payload.total_potongan_kasbon = Number(total_potongan_kasbon)
+  if (total_bonus_libur !== undefined) payload.total_bonus_libur = Number(total_bonus_libur)
+  if (total_bonus_manual !== undefined) payload.total_bonus_manual = Number(total_bonus_manual)
+  if (adjustment !== undefined) payload.adjustment = Number(adjustment)
+  if (keterangan_adjustment !== undefined) payload.keterangan_adjustment = keterangan_adjustment
+  if (total_gaji !== undefined) payload.total_gaji = Number(total_gaji)
+  if (status !== undefined) payload.status = status
+  if (status_pembayaran !== undefined) payload.status_pembayaran = status_pembayaran
+  if (tanggal_dibayar !== undefined) payload.tanggal_dibayar = tanggal_dibayar
+  if (updated_at !== undefined) payload.updated_at = updated_at
+
+  return payload
+}

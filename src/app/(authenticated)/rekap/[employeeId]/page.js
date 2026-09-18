@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { RekapKaryawanView } from '@/components/rekap/RekapKaryawanView'
-import { getPayrollPeriod, kalkulasiPayrollKaryawan } from '@/lib/utils/payroll'
+import { getPayrollPeriod, kalkulasiPayrollKaryawan, sanitizePayrollPayload } from '@/lib/utils/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -96,21 +96,22 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       periodeTahun: currentYear,
     })
 
+    const payload = sanitizePayrollPayload({
+      ...freshPayroll,
+      updated_at: new Date().toISOString(),
+    })
+
     if (payroll) {
-      await db.from('payroll').update({
-        ...freshPayroll,
-        updated_at: new Date().toISOString(),
-      }).eq('id', payroll.id)
+      await db.from('payroll').update(payload).eq('id', payroll.id)
       activePayroll = { ...payroll, ...freshPayroll }
     } else {
       const { data: inserted } = await db.from('payroll').upsert(
         {
-          ...freshPayroll,
+          ...payload,
           status: 'draft',
           status_pembayaran: 'belum_dibayar',
           tanggal_dibayar: null,
           keterangan_adjustment: null,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'employee_id,periode_bulan,periode_tahun' }
       ).select().single()

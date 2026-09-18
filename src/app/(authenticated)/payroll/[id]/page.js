@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { addBonusAction, deleteBonusAction } from '@/actions/bonus'
-import { updateAdjustmentAction, syncSingleEmployeePayroll, updatePaymentStatusAction } from '@/actions/payroll'
+import { updateAdjustmentAction, updatePaymentStatusAction } from '@/actions/payroll'
 import { SlipActions } from '@/components/payroll/SlipActions'
-import { formatRupiah, formatTanggal } from '@/lib/constants'
+import { formatRupiah, formatTanggal, DEFAULT_SETTINGS } from '@/lib/constants'
+import { kalkulasiPayrollKaryawan, getPayrollPeriod, sanitizePayrollPayload } from '@/lib/utils/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,23 +29,74 @@ export default async function DetailPayrollPage({ params }) {
 
   if (!initialPayroll) notFound()
 
-  if (initialPayroll.status_pembayaran !== 'sudah_dibayar') {
-    await syncSingleEmployeePayroll(
-      db,
-      initialPayroll.employee_id,
-      initialPayroll.periode_bulan,
-      initialPayroll.periode_tahun,
-      id
-    )
+  let payroll = initialPayroll
+
+  // Jika belum dibayar, hitung real-time dan update ke DB
+  if (initialPayroll.status_pembayaran !== 'sudah_dibayar' && initialPayroll.profiles) {
+    const emp = initialPayroll.profiles
+    const currentMonth = initialPayroll.periode_bulan
+    const currentYear = initialPayroll.periode_tahun
+    const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, currentMonth, currentYear)
+
+    const [
+      { data: attendances },
+      { data: bonuses },
+      { data: activeLoans },
+      { data: settings },
+    ] = await Promise.all([
+      db
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .gte('tanggal', empStartDate)
+        .lte('tanggal', empEndDate),
+      db
+        .from('bonus')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .eq('periode_bulan', currentMonth)
+        .eq('periode_tahun', currentYear),
+      db
+        .from('loans')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .eq('status', 'aktif'),
+      db.from('settings').select('*').eq('id', 1).maybeSingle(),
+    ])
+
+    const currentSettings = settings || DEFAULT_SETTINGS
+    const adj = initialPayroll.adjustment || 0
+
+    const calcResult = kalkulasiPayrollKaryawan({
+      employee: emp,
+      attendances: attendances || [],
+      bonuses: bonuses || [],
+      loans: activeLoans || [],
+      leaves: [],
+      settings: currentSettings,
+      adjustment: adj,
+      periodeBulan: currentMonth,
+      periodeTahun: currentYear,
+    })
+
+    const payload = sanitizePayrollPayload({
+      ...calcResult,
+      updated_at: new Date().toISOString(),
+    })
+
+    // Update database
+    try {
+      await db.from('payroll').update(payload).eq('id', id)
+    } catch (e) {
+      console.error('Error updating payroll in detail page:', e)
+    }
+
+    payroll = {
+      ...initialPayroll,
+      ...calcResult,
+      profiles: emp,
+    }
   }
-
-  const { data: payroll } = await db
-    .from('payroll')
-    .select('*, profiles(*)')
-    .eq('id', id)
-    .single()
-
-  if (!payroll) notFound()
 
   // Ambil rincian bonus manual
   const { data: bonusList } = await db

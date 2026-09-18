@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { kalkulasiPayrollKaryawan, getPayrollPeriod, getPayrollPeriodForDate } from '@/lib/utils/payroll'
+import { kalkulasiPayrollKaryawan, getPayrollPeriod, getPayrollPeriodForDate, sanitizePayrollPayload } from '@/lib/utils/payroll'
 import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 
 /**
@@ -78,23 +78,26 @@ export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, pe
       periodeTahun,
     })
 
+    const payload = sanitizePayrollPayload({
+      ...calcResult,
+      updated_at: new Date().toISOString(),
+    })
+
     if (existingPayroll) {
-      await db.from('payroll').update({
-        ...calcResult,
-        updated_at: new Date().toISOString(),
-      }).eq('id', existingPayroll.id)
+      const { error: updErr } = await db.from('payroll').update(payload).eq('id', existingPayroll.id)
+      if (updErr) console.error('Error updating payroll:', updErr)
     } else {
-      await db.from('payroll').upsert(
+      const { error: insErr } = await db.from('payroll').upsert(
         {
-          ...calcResult,
+          ...payload,
           status: 'draft',
           status_pembayaran: 'belum_dibayar',
           tanggal_dibayar: null,
           keterangan_adjustment: null,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'employee_id,periode_bulan,periode_tahun' }
       )
+      if (insErr) console.error('Error inserting payroll:', insErr)
     }
   } catch (err) {
     console.error('Error in syncSingleEmployeePayroll:', err)
@@ -207,33 +210,35 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
       })
 
       let payrollId = existingPayroll?.id
+      const payload = sanitizePayrollPayload({
+        ...calcResult,
+        updated_at: new Date().toISOString(),
+      })
 
       // Upsert ke database secara otomatis agar record payroll selalu sinkron
       try {
         if (existingPayroll) {
-          await db
+          const { error: updErr } = await db
             .from('payroll')
-            .update({
-              ...calcResult,
-              updated_at: new Date().toISOString(),
-            })
+            .update(payload)
             .eq('id', existingPayroll.id)
+          if (updErr) console.error('Error auto-syncing update payroll record:', updErr)
         } else {
-          const { data: newPayroll } = await db
+          const { data: newPayroll, error: insErr } = await db
             .from('payroll')
             .upsert(
               {
-                ...calcResult,
+                ...payload,
                 status: 'draft',
                 status_pembayaran: 'belum_dibayar',
                 tanggal_dibayar: null,
                 keterangan_adjustment: null,
-                updated_at: new Date().toISOString(),
               },
               { onConflict: 'employee_id,periode_bulan,periode_tahun' }
             )
             .select('id')
             .single()
+          if (insErr) console.error('Error auto-syncing upsert payroll record:', insErr)
           payrollId = newPayroll?.id
         }
       } catch (e) {
@@ -379,17 +384,20 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
           periodeTahun,
         })
 
-        await db.from('payroll').upsert(
-          {
-            ...calcResult,
-            status: 'draft',
-            status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
-            tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
-            keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
-            updated_at: new Date().toISOString(),
-          },
+        const payload = sanitizePayrollPayload({
+          ...calcResult,
+          status: 'draft',
+          status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
+          tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
+          keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
+          updated_at: new Date().toISOString(),
+        })
+
+        const { error: upsertErr } = await db.from('payroll').upsert(
+          payload,
           { onConflict: 'employee_id,periode_bulan,periode_tahun' }
         )
+        if (upsertErr) console.error(`Error upserting payroll for ${emp.nama}:`, upsertErr)
       } catch (err) {
         console.error(`Error calculating payroll for employee ${emp.nama || emp.id}:`, err)
       }
