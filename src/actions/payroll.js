@@ -9,18 +9,31 @@ import { DEFAULT_SETTINGS, ATTENDANCE_STATUS } from '@/lib/constants'
 /**
  * Helper: Sinkronisasi ulang record payroll satu karyawan secara real-time
  */
-export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, periodeTahun) {
+export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, periodeTahun, specificPayrollId = null) {
   try {
     const { data: emp } = await db.from('profiles').select('*').eq('id', employeeId).single()
     if (!emp || emp.role === 'owner' || emp.status_aktif === false) return
 
-    const { data: existingPayroll } = await db
+    const { data: existingPayrolls } = await db
       .from('payroll')
       .select('id, adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
       .eq('employee_id', employeeId)
       .eq('periode_bulan', periodeBulan)
       .eq('periode_tahun', periodeTahun)
-      .maybeSingle()
+      .order('updated_at', { ascending: false })
+
+    const existingPayroll = specificPayrollId
+      ? existingPayrolls?.find((p) => p.id === specificPayrollId) || existingPayrolls?.[0]
+      : existingPayrolls?.[0]
+
+    // Bersihkan record duplikat jika ada
+    if (existingPayrolls && existingPayrolls.length > 1) {
+      const keepId = existingPayroll?.id || existingPayrolls[0].id
+      const duplicateIds = existingPayrolls.filter((p) => p.id !== keepId).map((p) => p.id)
+      if (duplicateIds.length > 0) {
+        await db.from('payroll').delete().in('id', duplicateIds)
+      }
+    }
 
     // Jangan timpa otomatis jika sudah berstatus 'sudah_dibayar'
     if (existingPayroll && existingPayroll.status_pembayaran === 'sudah_dibayar') {
@@ -71,14 +84,17 @@ export async function syncSingleEmployeePayroll(db, employeeId, periodeBulan, pe
         updated_at: new Date().toISOString(),
       }).eq('id', existingPayroll.id)
     } else {
-      await db.from('payroll').insert({
-        ...calcResult,
-        status: 'draft',
-        status_pembayaran: 'belum_dibayar',
-        tanggal_dibayar: null,
-        keterangan_adjustment: null,
-        updated_at: new Date().toISOString(),
-      })
+      await db.from('payroll').upsert(
+        {
+          ...calcResult,
+          status: 'draft',
+          status_pembayaran: 'belum_dibayar',
+          tanggal_dibayar: null,
+          keterangan_adjustment: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'employee_id,periode_bulan,periode_tahun' }
+      )
     }
   } catch (err) {
     console.error('Error in syncSingleEmployeePayroll:', err)
@@ -133,7 +149,7 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
         { data: attendances },
         { data: bonuses },
         { data: activeLoans },
-        { data: existingPayroll }
+        { data: existingPayrolls }
       ] = await Promise.all([
         db
           .from('attendance')
@@ -158,8 +174,16 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
           .eq('employee_id', emp.id)
           .eq('periode_bulan', currentMonth)
           .eq('periode_tahun', currentYear)
-          .maybeSingle(),
+          .order('updated_at', { ascending: false }),
       ])
+
+      const existingPayroll = existingPayrolls && existingPayrolls.length > 0 ? existingPayrolls[0] : null
+
+      // Bersihkan record duplikat jika ada
+      if (existingPayrolls && existingPayrolls.length > 1) {
+        const duplicateIds = existingPayrolls.slice(1).map((r) => r.id)
+        await db.from('payroll').delete().in('id', duplicateIds)
+      }
 
       // Jika sudah dibayar, gunakan snapshot data yang sudah dibayar
       if (existingPayroll && existingPayroll.status_pembayaran === 'sudah_dibayar') {
@@ -197,14 +221,17 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
         } else {
           const { data: newPayroll } = await db
             .from('payroll')
-            .insert({
-              ...calcResult,
-              status: 'draft',
-              status_pembayaran: 'belum_dibayar',
-              tanggal_dibayar: null,
-              keterangan_adjustment: null,
-              updated_at: new Date().toISOString(),
-            })
+            .upsert(
+              {
+                ...calcResult,
+                status: 'draft',
+                status_pembayaran: 'belum_dibayar',
+                tanggal_dibayar: null,
+                keterangan_adjustment: null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'employee_id,periode_bulan,periode_tahun' }
+            )
             .select('id')
             .single()
           payrollId = newPayroll?.id
@@ -215,7 +242,7 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
 
       return {
         ...calcResult,
-        id: payrollId || `temp-${emp.id}`,
+        id: payrollId || existingPayroll?.id || `temp-${emp.id}`,
         status_pembayaran: existingPayroll?.status_pembayaran || 'belum_dibayar',
         tanggal_dibayar: existingPayroll?.tanggal_dibayar || null,
         keterangan_adjustment: existingPayroll?.keterangan_adjustment || null,
@@ -303,7 +330,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
         // Hitung range tanggal periode berdasarkan tanggal bergabung karyawan
         const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, periodeBulan, periodeTahun)
 
-        const [{ data: attendances }, { data: bonuses }, { data: activeLoans }, { data: existingPayroll }] = await Promise.all([
+        const [{ data: attendances }, { data: bonuses }, { data: activeLoans }, { data: existingPayrolls }] = await Promise.all([
           db
             .from('attendance')
             .select('*')
@@ -323,12 +350,20 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
             .eq('status', 'aktif'),
           db
             .from('payroll')
-            .select('adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
+            .select('id, adjustment, keterangan_adjustment, status_pembayaran, tanggal_dibayar')
             .eq('employee_id', emp.id)
             .eq('periode_bulan', periodeBulan)
             .eq('periode_tahun', periodeTahun)
-            .maybeSingle(),
+            .order('updated_at', { ascending: false }),
         ])
+
+        const existingPayroll = existingPayrolls && existingPayrolls.length > 0 ? existingPayrolls[0] : null
+
+        // Bersihkan duplikat jika ada
+        if (existingPayrolls && existingPayrolls.length > 1) {
+          const duplicateIds = existingPayrolls.slice(1).map((r) => r.id)
+          await db.from('payroll').delete().in('id', duplicateIds)
+        }
 
         const adj = existingPayroll?.adjustment || 0
 
@@ -363,6 +398,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
 
   revalidatePath('/payroll')
   revalidatePath('/rekap')
+  revalidatePath('/slip-gaji')
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -370,7 +406,7 @@ export async function generatePayrollPeriodAction(periodeBulan, periodeTahun) {
 /**
  * Server action: Update Status Pembayaran Gaji & Auto-Deduct Kasbon Karyawan
  */
-export async function updatePaymentStatusAction(payrollId, statusPembayaran, tanggalDibayar = null) {
+export async function updatePaymentStatusAction(payrollId, statusPembayaran, tanggalDibayar = null, extraContext = {}) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -383,14 +419,52 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
 
   const db = getDbClient(supabase)
 
-  // Ambil record payroll saat ini
-  const { data: currentPayroll } = await db
-    .from('payroll')
-    .select('*')
-    .eq('id', payrollId)
-    .single()
+  let targetId = payrollId
+  let currentPayroll = null
 
-  if (!currentPayroll) {
+  // 1. Cari by ID jika payrollId valid UUID
+  if (targetId && !targetId.startsWith('temp-')) {
+    const { data } = await db.from('payroll').select('*').eq('id', targetId).maybeSingle()
+    currentPayroll = data
+  }
+
+  // 2. Fallback: jika tidak ditemukan by ID, cari by employee_id + periode
+  const empId = extraContext.employeeId || (payrollId?.startsWith('temp-') ? payrollId.replace('temp-', '') : null)
+  const pBulan = extraContext.periodeBulan
+  const pTahun = extraContext.periodeTahun
+
+  if (!currentPayroll && empId && pBulan && pTahun) {
+    const { data: list } = await db
+      .from('payroll')
+      .select('*')
+      .eq('employee_id', empId)
+      .eq('periode_bulan', pBulan)
+      .eq('periode_tahun', pTahun)
+      .order('updated_at', { ascending: false })
+
+    if (list && list.length > 0) {
+      currentPayroll = list[0]
+      targetId = currentPayroll.id
+    }
+  }
+
+  // 3. Jika record belum ada sama sekali di DB, lakukan sync terlebih dahulu
+  if (!currentPayroll && empId && pBulan && pTahun) {
+    await syncSingleEmployeePayroll(db, empId, pBulan, pTahun)
+    const { data: freshList } = await db
+      .from('payroll')
+      .select('*')
+      .eq('employee_id', empId)
+      .eq('periode_bulan', pBulan)
+      .eq('periode_tahun', pTahun)
+      .order('updated_at', { ascending: false })
+    if (freshList && freshList.length > 0) {
+      currentPayroll = freshList[0]
+      targetId = currentPayroll.id
+    }
+  }
+
+  if (!currentPayroll || !targetId) {
     return { error: 'Data payroll tidak ditemukan.' }
   }
 
@@ -404,7 +478,7 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
       tanggal_dibayar: statusPembayaran === 'sudah_dibayar' ? (tanggalDibayar || new Date().toISOString().split('T')[0]) : null,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', payrollId)
+    .eq('id', targetId)
 
   if (error) {
     return { error: `Gagal memperbarui status pembayaran: ${error.message}` }
@@ -473,8 +547,10 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
   }
 
   revalidatePath('/payroll')
+  revalidatePath(`/payroll/${targetId}`)
   revalidatePath('/kasbon')
   revalidatePath('/rekap')
+  revalidatePath('/slip-gaji')
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -495,7 +571,7 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
 
   const db = getDbClient(supabase)
 
-  const { data: current } = await db.from('payroll').select('*').eq('id', payrollId).single()
+  const { data: current } = await db.from('payroll').select('*').eq('id', payrollId).maybeSingle()
   if (!current) return { error: 'Data payroll tidak ditemukan.' }
 
   const adjNum = parseInt(adjustment || '0', 10)
@@ -526,7 +602,9 @@ export async function updateAdjustmentAction(payrollId, adjustment, keterangan) 
   }
 
   revalidatePath('/payroll')
+  revalidatePath(`/payroll/${payrollId}`)
   revalidatePath('/rekap')
+  revalidatePath('/slip-gaji')
   revalidatePath('/', 'layout')
   return { success: true }
 }

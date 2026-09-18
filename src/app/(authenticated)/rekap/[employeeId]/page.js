@@ -32,7 +32,7 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
   const { startDate, endDate } = getPayrollPeriod(employee, currentMonth, currentYear)
 
   const [
-    { data: payroll },
+    { data: payrolls },
     { data: attendances },
     { data: allEmployees },
     { data: settings },
@@ -43,7 +43,7 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       .eq('employee_id', employeeId)
       .eq('periode_bulan', currentMonth)
       .eq('periode_tahun', currentYear)
-      .maybeSingle(),
+      .order('updated_at', { ascending: false }),
     db
       .from('attendance')
       .select('*')
@@ -59,6 +59,14 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       .order('nama', { ascending: true }),
     db.from('settings').select('*').eq('id', 1).maybeSingle(),
   ])
+
+  const payroll = payrolls && payrolls.length > 0 ? payrolls[0] : null
+
+  // Bersihkan duplikat jika ada
+  if (payrolls && payrolls.length > 1) {
+    const duplicateIds = payrolls.slice(1).map((r) => r.id)
+    await db.from('payroll').delete().in('id', duplicateIds)
+  }
 
   let activePayroll = payroll
   if (!payroll || payroll.status_pembayaran !== 'sudah_dibayar') {
@@ -95,14 +103,17 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       }).eq('id', payroll.id)
       activePayroll = { ...payroll, ...freshPayroll }
     } else {
-      const { data: inserted } = await db.from('payroll').insert({
-        ...freshPayroll,
-        status: 'draft',
-        status_pembayaran: 'belum_dibayar',
-        tanggal_dibayar: null,
-        keterangan_adjustment: null,
-        updated_at: new Date().toISOString(),
-      }).select().single()
+      const { data: inserted } = await db.from('payroll').upsert(
+        {
+          ...freshPayroll,
+          status: 'draft',
+          status_pembayaran: 'belum_dibayar',
+          tanggal_dibayar: null,
+          keterangan_adjustment: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'employee_id,periode_bulan,periode_tahun' }
+      ).select().single()
       activePayroll = inserted || {
         ...freshPayroll,
         status_pembayaran: 'belum_dibayar',

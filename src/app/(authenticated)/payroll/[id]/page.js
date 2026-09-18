@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { addBonusAction, deleteBonusAction } from '@/actions/bonus'
-import { updateAdjustmentAction, syncSingleEmployeePayroll } from '@/actions/payroll'
+import { updateAdjustmentAction, syncSingleEmployeePayroll, updatePaymentStatusAction } from '@/actions/payroll'
 import { SlipActions } from '@/components/payroll/SlipActions'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 
@@ -20,11 +20,11 @@ export default async function DetailPayrollPage({ params }) {
   const db = getDbClient(supabase)
 
   // Ambil record payroll awal
-  const { data: initialPayroll } = await db
+  let { data: initialPayroll } = await db
     .from('payroll')
     .select('*, profiles(*)')
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (!initialPayroll) notFound()
 
@@ -33,7 +33,8 @@ export default async function DetailPayrollPage({ params }) {
       db,
       initialPayroll.employee_id,
       initialPayroll.periode_bulan,
-      initialPayroll.periode_tahun
+      initialPayroll.periode_tahun,
+      id
     )
   }
 
@@ -60,6 +61,18 @@ export default async function DetailPayrollPage({ params }) {
     await updateAdjustmentAction(id, adj, ket)
   }
 
+  const togglePaymentAction = updatePaymentStatusAction.bind(
+    null,
+    payroll.id,
+    payroll.status_pembayaran === 'sudah_dibayar' ? 'belum_dibayar' : 'sudah_dibayar',
+    null,
+    {
+      employeeId: payroll.employee_id,
+      periodeBulan: payroll.periode_bulan,
+      periodeTahun: payroll.periode_tahun,
+    }
+  )
+
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
       <div>
@@ -76,15 +89,20 @@ export default async function DetailPayrollPage({ params }) {
 
       {/* Slip Gaji Card */}
       <Card variant="default" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Kedai Taichan & Chicken KA</h2>
             <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', marginTop: '0.2rem' }}>Slip Pembayaran Gaji Karyawan</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <Badge variant={payroll.status_pembayaran === 'sudah_dibayar' ? 'success' : 'warning'} size="md">
               {payroll.status_pembayaran === 'sudah_dibayar' ? 'LUNAS / SUDAH DIBAYAR' : 'BELUM DIBAYAR'}
             </Badge>
+            <form action={togglePaymentAction}>
+              <Button variant="outline" size="sm" type="submit">
+                {payroll.status_pembayaran === 'sudah_dibayar' ? 'Tandai Belum' : '✓ Tandai Lunas'}
+              </Button>
+            </form>
           </div>
         </div>
 

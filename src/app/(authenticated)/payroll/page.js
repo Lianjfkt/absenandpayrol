@@ -85,7 +85,13 @@ export default async function PayrollPage({ searchParams }) {
             const togglePaymentAction = updatePaymentStatusAction.bind(
               null,
               item.id,
-              item.status_pembayaran === 'sudah_dibayar' ? 'belum_dibayar' : 'sudah_dibayar'
+              item.status_pembayaran === 'sudah_dibayar' ? 'belum_dibayar' : 'sudah_dibayar',
+              null,
+              {
+                employeeId: item.employee_id || item.profiles?.id,
+                periodeBulan: currentMonth,
+                periodeTahun: currentYear,
+              }
             )
             const tglGajian = item.profiles?.tanggal_mulai ? new Date(item.profiles.tanggal_mulai).getDate() : 1
             const empForPeriod = { tanggal_mulai: item.profiles?.tanggal_mulai }
