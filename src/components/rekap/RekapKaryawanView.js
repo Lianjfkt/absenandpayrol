@@ -63,14 +63,19 @@ export function RekapKaryawanView({
 }) {
   const router = useRouter()
 
-  const handlePeriodChange = (e) => {
-    const [year, month] = e.target.value.split('-')
-    router.push(`/rekap/${employee.id}?bulan=${parseInt(month, 10)}&tahun=${year}`)
+  const handlePrevPeriod = () => {
+    if (currentMonth === 1) router.push(`/rekap/${employee.id}?bulan=12&tahun=${currentYear - 1}`)
+    else router.push(`/rekap/${employee.id}?bulan=${currentMonth - 1}&tahun=${currentYear}`)
   }
 
-  const handleEmployeeChange = (e) => {
-    router.push(`/rekap/${e.target.value}?bulan=${currentMonth}&tahun=${currentYear}`)
+  const handleNextPeriod = () => {
+    if (currentMonth === 12) router.push(`/rekap/${employee.id}?bulan=1&tahun=${currentYear + 1}`)
+    else router.push(`/rekap/${employee.id}?bulan=${currentMonth + 1}&tahun=${currentYear}`)
   }
+
+  const nowYear = new Date().getFullYear()
+  const nowMonth = new Date().getMonth() + 1
+  const isCurrentPeriod = currentMonth === nowMonth && currentYear === nowYear
 
   const handleExportPDF = () => {
     generateRekapKaryawanPDF(employee, payroll, attendances, currentMonth, currentYear, settings, periodStart, periodEnd)
@@ -141,44 +146,177 @@ export function RekapKaryawanView({
         </div>
       </div>
 
-      {/* Filter: Karyawan + Periode */}
-      <div
-        style={{
-          display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center',
-          padding: '0.85rem 1.25rem',
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-card)', boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink-muted)' }}>Karyawan:</span>
-          <select
-            value={employee.id}
-            onChange={handleEmployeeChange}
-            style={{
-              padding: '0.45rem 0.85rem', borderRadius: 'var(--radius-pill)',
-              background: 'var(--surface-muted)', border: '1.5px solid var(--border)',
-              color: 'var(--ink)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', outline: 'none',
-            }}
-          >
-            {allEmployees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.nama}</option>
-            ))}
-          </select>
+      {/* ── FILTER CARD: Karyawan + Periode ── */}
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+      }}>
+        {/* Karyawan chips */}
+        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+            Karyawan
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            paddingBottom: '2px',
+          }}>
+            {allEmployees.map((emp) => {
+              const active = emp.id === employee.id
+              const initials = emp.nama ? emp.nama.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'
+              return (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => router.push(`/rekap/${emp.id}?bulan=${currentMonth}&tahun=${currentYear}`)}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.35rem 0.75rem 0.35rem 0.4rem',
+                    borderRadius: 'var(--radius-pill)',
+                    border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                    background: active ? 'var(--accent-soft)' : 'var(--surface-muted)',
+                    color: active ? 'var(--accent)' : 'var(--ink)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    fontWeight: active ? 700 : 600,
+                    fontSize: '0.8rem',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span style={{
+                    width: '22px', height: '22px',
+                    borderRadius: '50%',
+                    background: active ? 'var(--accent)' : 'var(--border-strong)',
+                    color: active ? '#fff' : 'var(--ink-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    flexShrink: 0,
+                  }}>
+                    {initials}
+                  </span>
+                  {emp.nama}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink-muted)' }}>Periode:</span>
-          <input
-            type="month"
-            value={`${currentYear}-${String(currentMonth).padStart(2, '0')}`}
-            onChange={handlePeriodChange}
+        {/* Period Navigator */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.85rem 1.25rem',
+          borderBottom: '1px solid var(--border)',
+          gap: '0.5rem',
+        }}>
+          <button
+            type="button"
+            onClick={handlePrevPeriod}
+            aria-label="Bulan sebelumnya"
             style={{
-              padding: '0.45rem 0.85rem', borderRadius: 'var(--radius-pill)',
-              background: 'var(--surface-muted)', border: '1.5px solid var(--border)',
-              color: 'var(--ink)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', outline: 'none',
+              width: '38px', height: '38px',
+              borderRadius: 'var(--radius-input)',
+              border: '1.5px solid var(--border)',
+              background: 'var(--surface-muted)',
+              color: 'var(--ink)',
+              fontSize: '1.1rem', fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}
-          />
+          >
+            ‹
+          </button>
+
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+              {BULAN[currentMonth - 1]}
+            </div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--ink-muted)', marginTop: '0.1rem' }}>
+              {currentYear}
+              {isCurrentPeriod && (
+                <span style={{
+                  marginLeft: '0.4rem',
+                  background: 'var(--accent)', color: '#fff',
+                  fontSize: '0.6rem', fontWeight: 700,
+                  padding: '0.1rem 0.4rem',
+                  borderRadius: 'var(--radius-pill)',
+                  verticalAlign: 'middle',
+                }}>
+                  BERJALAN
+                </span>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleNextPeriod}
+            aria-label="Bulan berikutnya"
+            style={{
+              width: '38px', height: '38px',
+              borderRadius: 'var(--radius-input)',
+              border: '1.5px solid var(--border)',
+              background: 'var(--surface-muted)',
+              color: 'var(--ink)',
+              fontSize: '1.1rem', fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            ›
+          </button>
+        </div>
+
+        {/* Quick month chips */}
+        <div style={{
+          display: 'flex', gap: '0.35rem',
+          padding: '0.55rem 1.25rem',
+          overflowX: 'auto', scrollbarWidth: 'none',
+        }}>
+          {Array.from({ length: 6 }, (_, i) => {
+            let m = nowMonth - i
+            let y = nowYear
+            if (m <= 0) { m += 12; y -= 1 }
+            const active = m === currentMonth && y === currentYear
+            return (
+              <button
+                key={`${y}-${m}`}
+                type="button"
+                onClick={() => router.push(`/rekap/${employee.id}?bulan=${m}&tahun=${y}`)}
+                style={{
+                  flexShrink: 0,
+                  padding: '0.28rem 0.7rem',
+                  borderRadius: 'var(--radius-pill)',
+                  border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                  background: active ? 'var(--accent)' : 'var(--surface-muted)',
+                  color: active ? '#fff' : 'var(--ink)',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {BULAN[m - 1].slice(0, 3)} {y}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Export buttons */}
+        <div style={{ display: 'flex', gap: '0.5rem', padding: '0.65rem 1.25rem', flexWrap: 'wrap' }}>
+          <Button variant="outline" size="sm" onClick={handleExportPDF} style={{ flex: 1, minWidth: '100px' }}>📄 PDF</Button>
+          <Button variant="primary" size="sm" onClick={handleExportCSV} style={{ flex: 1, minWidth: '100px' }}>📥 CSV</Button>
         </div>
       </div>
 
