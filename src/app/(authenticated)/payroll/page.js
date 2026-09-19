@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { generatePayrollPeriodAction, updatePaymentStatusAction, getLivePayrollList } from '@/actions/payroll'
 import { formatRupiah } from '@/lib/constants'
 import { getPayrollPeriod } from '@/lib/utils/payroll'
+import { PayrollPeriodFilter } from '@/components/payroll/PayrollPeriodFilter'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -53,6 +54,9 @@ export default async function PayrollPage({ searchParams }) {
           </Button>
         </form>
       </div>
+
+      {/* Kontrol Navigasi & Filter Periode */}
+      <PayrollPeriodFilter currentMonth={currentMonth} currentYear={currentYear} />
 
       {/* Ringkasan Total */}
       <Card variant="accent-soft" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', padding: '1.25rem 1.5rem' }}>

@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatRupiah } from '@/lib/constants'
-import { getPayrollPeriod } from '@/lib/utils/payroll'
+import { getPayrollPeriod, getPayrollPeriodForDate } from '@/lib/utils/payroll'
 
 export function OwnerAnalyticsView({
   employees = [],
@@ -13,14 +13,21 @@ export function OwnerAnalyticsView({
   currentYear,
 }) {
   const now = new Date()
-  const cMonth = currentMonth || now.getMonth() + 1
-  const cYear = currentYear || now.getFullYear()
+  const todayStr = new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const getEmpActivePeriod = (emp) => {
+    if (currentMonth && currentYear) {
+      return getPayrollPeriod(emp, currentMonth, currentYear)
+    }
+    const { periodeBulan, periodeTahun } = getPayrollPeriodForDate(emp, todayStr)
+    return getPayrollPeriod(emp, periodeBulan, periodeTahun)
+  }
 
   // Ambil attendance yang masuk ke dalam periode aktif masing-masing karyawan
   const periodAttendance = monthlyAttendance.filter((a) => {
     const emp = employees.find((e) => e.id === a.employee_id)
     if (!emp) return true
-    const { startDate, endDate } = getPayrollPeriod(emp, cMonth, cYear)
+    const { startDate, endDate } = getEmpActivePeriod(emp)
     return a.tanggal >= startDate && a.tanggal <= endDate
   })
 
@@ -36,7 +43,7 @@ export function OwnerAnalyticsView({
 
   // 2. Ranking Staf berdasarkan Kedisiplinan dalam periode berjalan
   const staffStats = employees.map((emp) => {
-    const { startDate, endDate } = getPayrollPeriod(emp, cMonth, cYear)
+    const { startDate, endDate } = getEmpActivePeriod(emp)
     const empAtt = monthlyAttendance.filter((a) => a.employee_id === emp.id && a.tanggal >= startDate && a.tanggal <= endDate)
     const empHadir = empAtt.filter((a) => a.status === 'hadir').length
     const empTelat = empAtt.filter((a) => a.status === 'telat').length

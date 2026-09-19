@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { formatRupiah, formatTanggal } from '@/lib/constants'
 import { SlipActions } from '@/components/payroll/SlipActions'
 import { syncSingleEmployeePayroll } from '@/actions/payroll'
+import { getPayrollPeriodForDate } from '@/lib/utils/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,12 +24,12 @@ export default async function SlipGajiKaryawanPage() {
     .single()
 
   const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
+  const todayStr = new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const { periodeBulan: activeMonth, periodeTahun: activeYear } = getPayrollPeriodForDate(profile, todayStr)
   const db = getDbClient(supabase)
 
   // Sinkronisasi otomatis payroll berjalan karyawan jika belum lunas
-  await syncSingleEmployeePayroll(db, user.id, currentMonth, currentYear)
+  await syncSingleEmployeePayroll(db, user.id, activeMonth, activeYear)
 
   // Ambil data payroll milik karyawan yang sedang login
   const { data: slipList } = await db

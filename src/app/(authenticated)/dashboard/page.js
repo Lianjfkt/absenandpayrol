@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
 import { OwnerAnalyticsView } from '@/components/dashboard/OwnerAnalyticsView'
 import { ROLES, formatRupiah, formatJam } from '@/lib/constants'
-import { getPayrollPeriod } from '@/lib/utils/payroll'
+import { getPayrollPeriod, getPayrollPeriodForDate } from '@/lib/utils/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,7 +41,8 @@ export default async function DashboardPage() {
 
   if (user) {
     if (!isOwner) {
-      const { startDate: empStartDate } = getPayrollPeriod(profile, currentMonth, currentYear)
+      const { periodeBulan: activeMonth, periodeTahun: activeYear } = getPayrollPeriodForDate(profile, todayStr)
+      const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(profile, activeMonth, activeYear)
       const [todayAttRes, monthlyAttRes] = await Promise.all([
         supabase
           .from('attendance')
@@ -53,7 +54,8 @@ export default async function DashboardPage() {
           .from('attendance')
           .select('*')
           .eq('employee_id', user.id)
-          .gte('tanggal', empStartDate),
+          .gte('tanggal', empStartDate)
+          .lte('tanggal', empEndDate),
       ])
       todayAttendance = todayAttRes.data
       monthlyAttendance = monthlyAttRes.data || []
@@ -80,7 +82,8 @@ export default async function DashboardPage() {
 
       let earliestStartDate = todayStr
       allEmployees.forEach((emp) => {
-        const { startDate } = getPayrollPeriod(emp, currentMonth, currentYear)
+        const { periodeBulan: empMonth, periodeTahun: empYear } = getPayrollPeriodForDate(emp, todayStr)
+        const { startDate } = getPayrollPeriod(emp, empMonth, empYear)
         if (startDate < earliestStartDate) earliestStartDate = startDate
       })
 
@@ -200,8 +203,6 @@ export default async function DashboardPage() {
             employees={allEmployees}
             monthlyAttendance={ownerMonthlyAttendance}
             activeLoans={activeLoans}
-            currentMonth={currentMonth}
-            currentYear={currentYear}
           />
 
           {/* Status Presensi Hari Ini */}
