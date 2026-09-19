@@ -2,106 +2,190 @@
 
 import { useRouter } from 'next/navigation'
 
+const BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
 export function PayrollPeriodFilter({ currentMonth, currentYear }) {
   const router = useRouter()
 
-  const handlePeriodChange = (e) => {
-    const [year, month] = e.target.value.split('-')
-    router.push(`/payroll?bulan=${parseInt(month, 10)}&tahun=${year}`)
+  const navigate = (month, year) => {
+    router.push(`/payroll?bulan=${month}&tahun=${year}`)
   }
 
   const handlePrevMonth = () => {
-    let prevM = currentMonth - 1
-    let prevY = currentYear
-    if (prevM < 1) {
-      prevM = 12
-      prevY -= 1
-    }
-    router.push(`/payroll?bulan=${prevM}&tahun=${prevY}`)
+    if (currentMonth === 1) navigate(12, currentYear - 1)
+    else navigate(currentMonth - 1, currentYear)
   }
 
   const handleNextMonth = () => {
-    let nextM = currentMonth + 1
-    let nextY = currentYear
-    if (nextM > 12) {
-      nextM = 1
-      nextY += 1
-    }
-    router.push(`/payroll?bulan=${nextM}&tahun=${nextY}`)
+    if (currentMonth === 12) navigate(1, currentYear + 1)
+    else navigate(currentMonth + 1, currentYear)
   }
+
+  const nowYear = new Date().getFullYear()
+  const nowMonth = new Date().getMonth() + 1
+  const isCurrentPeriod = currentMonth === nowMonth && currentYear === nowYear
 
   return (
     <div
       style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '0.85rem',
-        padding: '0.85rem 1.25rem',
         background: 'var(--surface)',
         borderRadius: 'var(--radius-card)',
         border: '1px solid var(--border)',
         boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontWeight: 600 }}>Pilih Periode:</span>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <button
-            type="button"
-            onClick={handlePrevMonth}
-            title="Bulan Sebelumnya"
+      {/* Period Navigator Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid var(--border)',
+          gap: '0.5rem',
+        }}
+      >
+        {/* Prev */}
+        <button
+          type="button"
+          onClick={handlePrevMonth}
+          aria-label="Bulan sebelumnya"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: 'var(--radius-input)',
+            border: '1.5px solid var(--border)',
+            background: 'var(--surface-muted)',
+            color: 'var(--ink)',
+            fontSize: '1.1rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'background 0.15s, border-color 0.15s',
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'var(--border)' }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'var(--surface-muted)' }}
+        >
+          ‹
+        </button>
+
+        {/* Center: Month + Year */}
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div
             style={{
-              background: 'var(--surface-muted)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-pill)',
-              padding: '0.35rem 0.65rem',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '1.2rem',
+              fontWeight: 800,
               color: 'var(--ink)',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
             }}
           >
-            ‹
-          </button>
-
-          <input
-            type="month"
-            value={`${currentYear}-${String(currentMonth).padStart(2, '0')}`}
-            onChange={handlePeriodChange}
+            {BULAN[currentMonth - 1]}
+          </div>
+          <div
             style={{
-              padding: '0.45rem 0.85rem',
-              borderRadius: 'var(--radius-pill)',
-              background: 'var(--surface-muted)',
-              border: '1.5px solid var(--border)',
-              color: 'var(--ink)',
-              fontSize: '0.875rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          />
-
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            title="Bulan Berikutnya"
-            style={{
-              background: 'var(--surface-muted)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-pill)',
-              padding: '0.35rem 0.65rem',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              color: 'var(--ink)',
+              color: 'var(--ink-muted)',
+              marginTop: '0.1rem',
             }}
           >
-            ›
-          </button>
+            {currentYear}
+            {isCurrentPeriod && (
+              <span
+                style={{
+                  marginLeft: '0.4rem',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '0.1rem 0.45rem',
+                  borderRadius: 'var(--radius-pill)',
+                  verticalAlign: 'middle',
+                }}
+              >
+                BERJALAN
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Next */}
+        <button
+          type="button"
+          onClick={handleNextMonth}
+          aria-label="Bulan berikutnya"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: 'var(--radius-input)',
+            border: '1.5px solid var(--border)',
+            background: 'var(--surface-muted)',
+            color: 'var(--ink)',
+            fontSize: '1.1rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'background 0.15s, border-color 0.15s',
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'var(--border)' }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'var(--surface-muted)' }}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Quick Month Chips — 6 bulan terakhir */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.35rem',
+          padding: '0.65rem 1.25rem',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {Array.from({ length: 6 }, (_, i) => {
+          let m = nowMonth - i
+          let y = nowYear
+          if (m <= 0) {
+            m += 12
+            y -= 1
+          }
+          const active = m === currentMonth && y === currentYear
+          return (
+            <button
+              key={`${y}-${m}`}
+              type="button"
+              onClick={() => navigate(m, y)}
+              style={{
+                flexShrink: 0,
+                padding: '0.3rem 0.75rem',
+                borderRadius: 'var(--radius-pill)',
+                border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                background: active ? 'var(--accent)' : 'var(--surface-muted)',
+                color: active ? '#fff' : 'var(--ink)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {BULAN[m - 1].slice(0, 3)} {y}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

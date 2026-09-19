@@ -334,6 +334,119 @@ export function RekapKaryawanView({
         </div>
       </div>
 
+      {/* Kalender Visual Absensi Harian */}
+      <Card style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+              📅 Kalender Visual Kehadiran
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', marginTop: '0.15rem' }}>
+              Status kehadiran tiap tanggal pada periode {periodLabel}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'var(--success)' }}></span> Hadir
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'var(--warning)' }}></span> Telat
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'var(--danger)' }}></span> Off
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#3B82F6' }}></span> Libur
+            </span>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))',
+          gap: '0.45rem',
+        }}>
+          {(() => {
+            const days = []
+            if (periodStart && periodEnd) {
+              const cur = new Date(periodStart + 'T00:00:00Z')
+              const end = new Date(periodEnd + 'T00:00:00Z')
+              while (cur <= end) {
+                const dStr = cur.toISOString().split('T')[0]
+                const dayOfWeek = cur.getUTCDay()
+                const att = attendances.find((a) => a.tanggal === dStr)
+                const isWeeklyOff = dayOfWeek === employee.hari_libur
+                const dayNum = cur.getUTCDate()
+                
+                let bg = 'var(--surface-muted)'
+                let color = 'var(--ink-muted)'
+                let border = '1px solid var(--border)'
+                let title = `${dStr}: Belum ada data`
+
+                if (att) {
+                  if (att.status === ATTENDANCE_STATUS.HADIR) {
+                    bg = '#DCFCE7'
+                    color = '#15803D'
+                    border = '1.5px solid #86EFAC'
+                    title = `${dStr}: Hadir (${att.jam_checkin ? new Date(att.jam_checkin).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'})`
+                  } else if (att.status === ATTENDANCE_STATUS.TELAT) {
+                    bg = '#FEF3C7'
+                    color = '#B45309'
+                    border = '1.5px solid #FCD34D'
+                    title = `${dStr}: Telat ${att.menit_telat} menit`
+                  } else if (att.status === ATTENDANCE_STATUS.OFF) {
+                    bg = '#FEE2E2'
+                    color = '#B91C1C'
+                    border = '1.5px solid #FCA5A5'
+                    title = `${dStr}: Off / Alpa`
+                  } else if (att.status === ATTENDANCE_STATUS.LIBUR_MINGGUAN) {
+                    bg = '#EFF6FF'
+                    color = '#1D4ED8'
+                    border = '1.5px solid #BFDBFE'
+                    title = `${dStr}: Libur Mingguan`
+                  }
+                } else if (isWeeklyOff) {
+                  bg = '#EFF6FF'
+                  color = '#3B82F6'
+                  border = '1px dashed #93C5FD'
+                  title = `${dStr}: Jadwal Libur Mingguan`
+                }
+
+                days.push(
+                  <div
+                    key={dStr}
+                    title={title}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '48px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: bg,
+                      color: color,
+                      border: border,
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      cursor: 'default',
+                      transition: 'transform 0.1s',
+                    }}
+                  >
+                    <span>{dayNum}</span>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 600, opacity: 0.85 }}>
+                      {['M', 'S', 'S', 'R', 'K', 'J', 'S'][dayOfWeek]}
+                    </span>
+                  </div>
+                )
+                cur.setUTCDate(cur.getUTCDate() + 1)
+              }
+            }
+            return days
+          })()}
+        </div>
+      </Card>
+
       {/* Ringkasan Gaji (dari payroll) */}
       <div>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '0.75rem' }}>

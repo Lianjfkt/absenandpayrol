@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { manualAttendanceOverrideAction, deleteAttendanceAction } from '@/actions/attendance'
 import { CheckInButton } from '@/components/attendance/CheckInButton'
 import { FotoCheckinPreview } from '@/components/attendance/FotoCheckinPreview'
@@ -20,6 +21,25 @@ export function AbsensiClientView({
   settings = {},
 }) {
   const router = useRouter()
+
+  // Real-time subscription untuk tabel attendance
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('realtime_attendance_feed')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance' },
+        () => {
+          router.refresh()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [router])
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
