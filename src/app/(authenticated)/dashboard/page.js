@@ -27,8 +27,9 @@ export default async function DashboardPage() {
   const now = new Date()
   const currentMonth = now.getMonth() + 1
   const currentYear = now.getFullYear()
-  const todayStr = now.toISOString().split('T')[0]
-  const todayDay = now.getDay()
+  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const todayStr = wibNow.toISOString().split('T')[0]
+  const todayDay = wibNow.getUTCDay()
   const isHariLibur = todayDay === profile?.hari_libur
 
   // Data untuk Karyawan & Owner diambil secara paralel

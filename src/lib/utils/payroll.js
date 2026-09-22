@@ -133,11 +133,6 @@ export function kalkulasiPayrollKaryawan({
   while (cursor <= endCursor) {
     const dateStr = cursor.toISOString().split('T')[0]
 
-    if (employee.tanggal_mulai && dateStr < employee.tanggal_mulai) {
-      cursor.setUTCDate(cursor.getUTCDate() + 1)
-      continue
-    }
-
     const dayOfWeek = cursor.getUTCDay()
     const isWeeklyOff = dayOfWeek === employee.hari_libur
 
