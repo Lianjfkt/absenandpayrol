@@ -6,7 +6,13 @@ import { Button } from './Button'
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showPrompt, setShowPrompt] = useState(false)
-  const [isStandalone, setIsStandalone] = useState(false)
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    )
+  })
 
   useEffect(() => {
     // Daftarkan Service Worker
@@ -16,12 +22,11 @@ export function PWAInstallPrompt() {
         .catch((err) => console.log('SW registration failed:', err))
     }
 
-    // Cek apakah sudah terinstall / standalone
+    // Jika sudah standalone, jangan pasang listener
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true
     ) {
-      setIsStandalone(true)
       return
     }
 

@@ -6,12 +6,11 @@ import { usePathname, useSearchParams } from 'next/navigation'
 export function TopProgressBar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [loading, setLoading] = useState(false)
+  const [navigatingTo, setNavigatingTo] = useState(null)
 
-  useEffect(() => {
-    // Sembunyikan progress bar saat rute selesai dimuat
-    setLoading(false)
-  }, [pathname, searchParams])
+  // Current full path
+  const currentPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '')
+  const isLoading = navigatingTo !== null && navigatingTo !== currentPath
 
   useEffect(() => {
     const handleAnchorClick = (e) => {
@@ -24,8 +23,9 @@ export function TopProgressBar() {
         target.target !== '_blank'
       ) {
         const url = new URL(target.href)
-        if (url.pathname !== window.location.pathname || url.search !== window.location.search) {
-          setLoading(true)
+        const newPath = url.pathname + url.search
+        if (newPath !== window.location.pathname + window.location.search) {
+          setNavigatingTo(newPath)
         }
       }
     }
@@ -36,7 +36,8 @@ export function TopProgressBar() {
     }
   }, [])
 
-  if (!loading) return null
+  if (!isLoading) return null
 
   return <div className="top-loading-indicator" />
 }
+

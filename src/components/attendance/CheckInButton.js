@@ -336,6 +336,7 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
           }}
         >
           <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', fontWeight: 600 }}>Foto Siap Dikirim:</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={capturedPhoto}
             alt="Selfie Checkin"

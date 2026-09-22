@@ -1,6 +1,14 @@
 import './globals.css'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Suspense } from 'react'
 import { TopProgressBar } from '@/components/ui/TopProgressBar'
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+  variable: '--font-sans',
+})
 
 export const metadata = {
   title: 'Sistem Absensi & Payroll Kedai',
@@ -17,15 +25,9 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id">
+    <html lang="id" className={plusJakartaSans.className}>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body>
         <Suspense fallback={null}>

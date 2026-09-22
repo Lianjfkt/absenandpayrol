@@ -26,11 +26,17 @@ export function hitungJarakMeter(lat1, lon1, lat2, lon2) {
 
 /**
  * Validasi apakah posisi karyawan berada dalam radius geofence kedai
+ * Mendukung buffer akurasi GPS perangkat untuk mencegah penolakan palsu akibat jitter
  */
-export function isDalamRadius(userLat, userLng, targetLat, targetLng, radiusMeter = 10) {
+export function isDalamRadius(userLat, userLng, targetLat, targetLng, radiusMeter = 30, accuracyMeter = null) {
   const jarak = hitungJarakMeter(userLat, userLng, targetLat, targetLng)
+  // Berikan buffer toleransi akurasi perangkat hingga maksimal 20m jika akurasi GPS ponsel lemah
+  const accBuffer = accuracyMeter && accuracyMeter > 0 ? Math.min(accuracyMeter * 0.5, 20) : 0
+  const effectiveRadius = Number(radiusMeter || 30) + accBuffer
+
   return {
-    isInside: jarak <= radiusMeter,
+    isInside: jarak <= effectiveRadius,
     jarakMeter: jarak,
+    effectiveRadius: Math.round(effectiveRadius * 10) / 10,
   }
 }

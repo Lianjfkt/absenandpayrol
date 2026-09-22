@@ -89,7 +89,6 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
       attendances: attendances || [],
       bonuses: bonuses || [],
       loans: activeLoans || [],
-      leaves: [],
       settings: settings || {},
       adjustment: payroll?.adjustment || 0,
       periodeBulan: currentMonth,

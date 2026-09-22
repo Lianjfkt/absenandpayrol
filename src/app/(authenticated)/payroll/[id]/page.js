@@ -72,7 +72,6 @@ export default async function DetailPayrollPage({ params }) {
       attendances: attendances || [],
       bonuses: bonuses || [],
       loans: activeLoans || [],
-      leaves: [],
       settings: currentSettings,
       adjustment: adj,
       periodeBulan: currentMonth,

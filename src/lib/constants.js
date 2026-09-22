@@ -12,19 +12,6 @@ export const ATTENDANCE_STATUS = {
   OFF: 'off',
 }
 
-// === Leave Types & Status ===
-export const LEAVE_TYPES = {
-  SAKIT: 'sakit',
-  IZIN: 'izin',
-  CUTI: 'cuti',
-}
-
-export const LEAVE_STATUS = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-}
-
 // === Loan Status ===
 export const LOAN_STATUS = {
   AKTIF: 'aktif',
@@ -55,7 +42,7 @@ export const HARI = [
 
 // === Default settings ===
 export const DEFAULT_SETTINGS = {
-  radius_meter: 10,
+  radius_meter: 30,
   jam_masuk: '07:00',
   jam_pulang: '18:00',
   toleransi_telat_menit: 5,

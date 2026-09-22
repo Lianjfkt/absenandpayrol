@@ -31,18 +31,19 @@ export async function checkInAction(latitude, longitude, fotoCheckin = null, acc
 
   const currentSettings = settings || DEFAULT_SETTINGS
 
-  // 2. Validasi Geofence GPS
-  const { isInside, jarakMeter } = isDalamRadius(
+  // 2. Validasi Geofence GPS dengan toleransi akurasi perangkat
+  const { isInside, jarakMeter, effectiveRadius } = isDalamRadius(
     latitude,
     longitude,
     currentSettings.lokasi_lat,
     currentSettings.lokasi_lng,
-    currentSettings.radius_meter
+    currentSettings.radius_meter,
+    accuracyMeter
   )
 
   if (!isInside) {
     return {
-      error: `Anda berada di luar radius kedai! Jarak Anda: ${jarakMeter} meter (Maksimal: ${currentSettings.radius_meter} meter).`,
+      error: `Anda berada di luar radius kedai! Jarak Anda: ${jarakMeter} meter (Maksimal: ${effectiveRadius || currentSettings.radius_meter} meter).`,
       jarakMeter,
     }
   }
