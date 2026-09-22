@@ -129,6 +129,15 @@ export async function syncAllActivePayrolls(db, periodeBulan, periodeTahun) {
  * sehingga halaman Payroll dan Rekap SELALU menampilkan kalkulasi terkini tanpa perlu klik generate manual.
  */
 export async function getLivePayrollList(db, currentMonth, currentYear) {
+  // Tentukan tanggal hari ini dalam WIB
+  const wibNow = new Date(new Date().getTime() + 7 * 60 * 60 * 1000)
+  const todayStr = wibNow.toISOString().split('T')[0]
+  const todayMonth = wibNow.getUTCMonth() + 1
+  const todayYear = wibNow.getUTCFullYear()
+  // Jika user melihat bulan berjalan → gunakan periode aktif tiap karyawan
+  // (bukan paksa semua pakai range kalender currentMonth yang sama)
+  const isCurrentPeriod = currentMonth === todayMonth && currentYear === todayYear
+
   const [{ data: allProfiles }, { data: settings }] = await Promise.all([
     db.from('profiles').select('*').order('created_at', { ascending: true }),
     db.from('settings').select('*').eq('id', 1).maybeSingle(),
@@ -145,7 +154,18 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
 
   const payrollList = await Promise.all(
     employees.map(async (emp) => {
-      const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, currentMonth, currentYear)
+      // Tentukan periode yang relevan untuk karyawan ini
+      let activeBulan = currentMonth
+      let activeTahun = currentYear
+
+      if (isCurrentPeriod) {
+        // Gunakan periode aktif berdasarkan tanggal hari ini (WIB)
+        const { periodeBulan, periodeTahun } = getPayrollPeriodForDate(emp, todayStr)
+        activeBulan = periodeBulan
+        activeTahun = periodeTahun
+      }
+
+      const { startDate: empStartDate, endDate: empEndDate } = getPayrollPeriod(emp, activeBulan, activeTahun)
 
       const [
         { data: attendances },
@@ -163,8 +183,8 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
           .from('bonus')
           .select('*')
           .eq('employee_id', emp.id)
-          .eq('periode_bulan', currentMonth)
-          .eq('periode_tahun', currentYear),
+          .eq('periode_bulan', activeBulan)
+          .eq('periode_tahun', activeTahun),
         db
           .from('loans')
           .select('*')
@@ -174,8 +194,8 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
           .from('payroll')
           .select('*')
           .eq('employee_id', emp.id)
-          .eq('periode_bulan', currentMonth)
-          .eq('periode_tahun', currentYear)
+          .eq('periode_bulan', activeBulan)
+          .eq('periode_tahun', activeTahun)
           .order('updated_at', { ascending: false }),
       ])
 
@@ -203,8 +223,8 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
         loans: activeLoans || [],
         settings: currentSettings,
         adjustment: adj,
-        periodeBulan: currentMonth,
-        periodeTahun: currentYear,
+        periodeBulan: activeBulan,
+        periodeTahun: activeTahun,
       })
 
       let payrollId = existingPayroll?.id
@@ -256,6 +276,7 @@ export async function getLivePayrollList(db, currentMonth, currentYear) {
 
   return { payrollList, settings: currentSettings }
 }
+
 
 /**
  * Helper: Sinkronisasi ulang payroll karyawan berdasarkan tanggal absensi
