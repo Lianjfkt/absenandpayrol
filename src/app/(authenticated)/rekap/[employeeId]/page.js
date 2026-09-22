@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { RekapKaryawanView } from '@/components/rekap/RekapKaryawanView'
-import { getPayrollPeriod, kalkulasiPayrollKaryawan, sanitizePayrollPayload } from '@/lib/utils/payroll'
+import { getPayrollPeriod, getPayrollPeriodForDate, kalkulasiPayrollKaryawan, sanitizePayrollPayload } from '@/lib/utils/payroll'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,8 +13,7 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
 
   const now = new Date()
   const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
-  const currentMonth = parseInt(sp?.bulan || (wibNow.getUTCMonth() + 1).toString(), 10)
-  const currentYear = parseInt(sp?.tahun || wibNow.getUTCFullYear().toString(), 10)
+  const todayStr = wibNow.toISOString().split('T')[0]
 
   const supabase = await createClient()
 
@@ -29,6 +28,15 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
   // Ambil profil dulu untuk menghitung range tanggal periode berdasarkan tanggal bergabung
   const { data: employee } = await db.from('profiles').select('*').eq('id', employeeId).single()
   if (!employee || employee.role === 'owner') notFound()
+
+  let currentMonth = parseInt(sp?.bulan, 10)
+  let currentYear = parseInt(sp?.tahun, 10)
+
+  if (isNaN(currentMonth) || isNaN(currentYear)) {
+    const active = getPayrollPeriodForDate(employee, todayStr)
+    currentMonth = active.periodeBulan
+    currentYear = active.periodeTahun
+  }
 
   const { startDate, endDate } = getPayrollPeriod(employee, currentMonth, currentYear)
 

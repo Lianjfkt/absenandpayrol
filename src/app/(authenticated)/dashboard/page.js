@@ -39,6 +39,7 @@ export default async function DashboardPage() {
   let todayAllAttendance = []
   let ownerMonthlyAttendance = []
   let activeLoans = []
+  let currentSettings = {}
 
   if (user) {
     if (!isOwner) {
@@ -61,7 +62,7 @@ export default async function DashboardPage() {
       todayAttendance = todayAttRes.data
       monthlyAttendance = monthlyAttRes.data || []
     } else {
-      const [empRes, todayAttDataRes, loansDataRes] = await Promise.all([
+      const [empRes, todayAttDataRes, loansDataRes, settingsRes] = await Promise.all([
         db
           .from('profiles')
           .select('*')
@@ -74,6 +75,11 @@ export default async function DashboardPage() {
           .from('loans')
           .select('*')
           .eq('status', 'aktif'),
+        db
+          .from('settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle(),
       ])
 
       const rawProfiles = empRes.data || []
@@ -96,6 +102,7 @@ export default async function DashboardPage() {
       todayAllAttendance = todayAttDataRes.data || []
       ownerMonthlyAttendance = mAttData || []
       activeLoans = loansDataRes.data || []
+      currentSettings = settingsRes.data || {}
     }
   }
 
@@ -204,6 +211,7 @@ export default async function DashboardPage() {
             employees={allEmployees}
             monthlyAttendance={ownerMonthlyAttendance}
             activeLoans={activeLoans}
+            settings={currentSettings}
           />
 
           {/* Status Presensi Hari Ini */}

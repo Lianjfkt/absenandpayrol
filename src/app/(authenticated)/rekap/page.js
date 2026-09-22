@@ -107,7 +107,7 @@ export default async function RekapLaporanPage({ searchParams }) {
                       {formatRupiah(p.total_gaji)}
                     </div>
                     <Link
-                      href={`/rekap/${p.employee_id}?bulan=${currentMonth}&tahun=${currentYear}`}
+                      href={`/rekap/${p.employee_id}?bulan=${p.periode_bulan || currentMonth}&tahun=${p.periode_tahun || currentYear}`}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                         padding: '0.4rem 0.9rem',

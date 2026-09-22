@@ -95,12 +95,54 @@ export function RekapKaryawanView({
     downloadCSV(`Rekap_${employee.nama.replace(/\s+/g, '_')}_${currentMonth}_${currentYear}.csv`, rows)
   }
 
-  // Hitung ringkasan absensi dari data attendance
-  const totalHadir = attendances.filter((a) => a.status === ATTENDANCE_STATUS.HADIR).length
-  const totalTelat = attendances.filter((a) => a.status === ATTENDANCE_STATUS.TELAT).length
-  const totalOff = attendances.filter((a) => a.status === ATTENDANCE_STATUS.OFF).length
+  // Waktu hari ini dalam WIB (UTC+7)
+  const now = new Date()
+  const wibTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const todayStr = wibTime.toISOString().split('T')[0]
+
+  // Gabungkan attendance aktual dengan hari alpa (hari kerja yang tidak ada presensi sejak bergabung)
+  const allDailyLogs = (() => {
+    const logs = [...attendances]
+    if (periodStart && periodEnd) {
+      const joinDate = employee.tanggal_mulai || periodStart
+      const effectiveStart = periodStart > joinDate ? periodStart : joinDate
+      const limitDate = todayStr < periodEnd ? todayStr : periodEnd
+
+      const cur = new Date(effectiveStart + 'T00:00:00Z')
+      const endLimit = new Date(limitDate + 'T00:00:00Z')
+
+      while (cur <= endLimit) {
+        const dStr = cur.toISOString().split('T')[0]
+        const dayOfWeek = cur.getUTCDay()
+        const isWeeklyOff = dayOfWeek === employee.hari_libur
+        const existing = logs.find((l) => l.tanggal === dStr)
+
+        if (!existing && !isWeeklyOff) {
+          logs.push({
+            id: `alpa-${dStr}`,
+            tanggal: dStr,
+            status: ATTENDANCE_STATUS.OFF,
+            jam_checkin: null,
+            jam_checkout: null,
+            menit_telat: 0,
+            potongan_telat: 0,
+            potongan_off: settings?.potongan_off ?? 50000,
+            catatan: 'Tidak ada presensi kerja (Off / Alpa)',
+            is_alpa: true,
+          })
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1)
+      }
+    }
+    return logs.sort((a, b) => b.tanggal.localeCompare(a.tanggal))
+  })()
+
+  // Hitung ringkasan absensi dari data attendance & payroll
+  const totalHadir = payroll?.total_hari_hadir !== undefined ? payroll.total_hari_hadir : attendances.filter((a) => a.status === ATTENDANCE_STATUS.HADIR).length
+  const totalTelat = payroll?.total_hari_telat !== undefined ? payroll.total_hari_telat : attendances.filter((a) => a.status === ATTENDANCE_STATUS.TELAT).length
+  const totalOff = payroll?.total_hari_off !== undefined ? payroll.total_hari_off : allDailyLogs.filter((a) => a.status === ATTENDANCE_STATUS.OFF).length
   const totalLibur = attendances.filter((a) => a.status === ATTENDANCE_STATUS.LIBUR_MINGGUAN).length
-  const totalPotonganTelat = attendances.reduce((s, a) => s + (a.potongan_telat || 0), 0)
+  const totalPotonganTelat = payroll?.total_potongan_telat !== undefined ? payroll.total_potongan_telat : attendances.reduce((s, a) => s + (a.potongan_telat || 0), 0)
 
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : null
   const periodLabel = periodStart && periodEnd
@@ -378,13 +420,20 @@ export function RekapKaryawanView({
                 const att = attendances.find((a) => a.tanggal === dStr)
                 const isWeeklyOff = dayOfWeek === employee.hari_libur
                 const dayNum = cur.getUTCDate()
-                
+                const isBeforeJoin = Boolean(employee.tanggal_mulai && dStr < employee.tanggal_mulai)
+                const isPastOrToday = dStr <= todayStr
+
                 let bg = 'var(--surface-muted)'
                 let color = 'var(--ink-muted)'
                 let border = '1px solid var(--border)'
                 let title = `${dStr}: Belum ada data`
 
-                if (att) {
+                if (isBeforeJoin) {
+                  bg = 'var(--surface-muted)'
+                  color = 'var(--ink-muted)'
+                  border = '1px dashed var(--border)'
+                  title = `${dStr}: Belum Bergabung`
+                } else if (att) {
                   if (att.status === ATTENDANCE_STATUS.HADIR) {
                     bg = '#DCFCE7'
                     color = '#15803D'
@@ -394,12 +443,12 @@ export function RekapKaryawanView({
                     bg = '#FEF3C7'
                     color = '#B45309'
                     border = '1.5px solid #FCD34D'
-                    title = `${dStr}: Telat ${att.menit_telat} menit`
+                    title = `${dStr}: Telat ${att.menit_telat} menit (-${formatRupiah(att.potongan_telat || 0)})`
                   } else if (att.status === ATTENDANCE_STATUS.OFF) {
                     bg = '#FEE2E2'
                     color = '#B91C1C'
                     border = '1.5px solid #FCA5A5'
-                    title = `${dStr}: Off / Alpa`
+                    title = `${dStr}: Off / Alpa (-${formatRupiah(settings?.potongan_off || 50000)})`
                   } else if (att.status === ATTENDANCE_STATUS.LIBUR_MINGGUAN) {
                     bg = '#EFF6FF'
                     color = '#1D4ED8'
@@ -411,6 +460,13 @@ export function RekapKaryawanView({
                   color = '#3B82F6'
                   border = '1px dashed #93C5FD'
                   title = `${dStr}: Jadwal Libur Mingguan`
+                } else if (isPastOrToday) {
+                  bg = '#FEE2E2'
+                  color = '#B91C1C'
+                  border = '1.5px solid #FCA5A5'
+                  title = `${dStr}: Off / Alpa (Tidak Masuk Kerja) - Potongan ${formatRupiah(settings?.potongan_off || 50000)}`
+                } else {
+                  title = `${dStr}: Jadwal Mendatang`
                 }
 
                 days.push(
@@ -498,13 +554,13 @@ export function RekapKaryawanView({
           Log Absensi Harian — {periodLabel}
         </h2>
 
-        {attendances.length === 0 ? (
+        {allDailyLogs.length === 0 ? (
           <Card style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--ink-muted)' }}>
             Tidak ada data absensi untuk karyawan ini pada periode {periodLabel}.
           </Card>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {attendances.map((att) => (
+            {allDailyLogs.map((att) => (
               <Card
                 key={att.id}
                 style={{
@@ -514,17 +570,37 @@ export function RekapKaryawanView({
                   flexWrap: 'wrap',
                   gap: '0.75rem',
                   padding: '0.85rem 1.25rem',
+                  background: att.is_alpa ? '#FEF2F2' : 'var(--surface)',
+                  border: att.is_alpa ? '1px solid #FCA5A5' : '1px solid var(--border)',
                 }}
               >
                 {/* Kiri: Foto + Tanggal + Catatan */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <FotoCheckinPreview
-                    fotoCheckin={att.foto_checkin}
-                    namaKaryawan={employee?.nama || ''}
-                    tanggal={att.tanggal}
-                    jamCheckin={att.jam_checkin}
-                    accuracy={att.accuracy_meter}
-                  />
+                  {att.is_alpa ? (
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: 'var(--radius-input)',
+                      background: '#FEE2E2',
+                      color: '#DC2626',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      border: '1px solid #FCA5A5',
+                    }}>
+                      ALPA
+                    </div>
+                  ) : (
+                    <FotoCheckinPreview
+                      fotoCheckin={att.foto_checkin}
+                      namaKaryawan={employee?.nama || ''}
+                      tanggal={att.tanggal}
+                      jamCheckin={att.jam_checkin}
+                      accuracy={att.accuracy_meter}
+                    />
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '120px' }}>
                     <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: '0.9rem' }}>
                       {formatTanggal(att.tanggal)}
@@ -542,7 +618,7 @@ export function RekapKaryawanView({
                       </span>
                     )}
                     {att.catatan && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+                      <div style={{ fontSize: '0.75rem', color: att.is_alpa ? '#DC2626' : 'var(--ink-muted)', fontStyle: 'italic' }}>
                         {att.catatan}
                       </div>
                     )}
@@ -551,28 +627,41 @@ export function RekapKaryawanView({
 
                 {/* Tengah: Jam masuk & pulang */}
                 <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: 'var(--ink)' }}>
-                  <div>
-                    <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>Masuk: </span>
-                    <strong>{att.jam_checkin ? formatJam(att.jam_checkin) : '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>Pulang: </span>
-                    <strong>{att.jam_checkout ? formatJam(att.jam_checkout) : '—'}</strong>
-                  </div>
-                  {att.menit_telat > 0 && (
-                    <div style={{ color: 'var(--warning)', fontWeight: 700 }}>
-                      +{att.menit_telat} mnt telat
+                  {att.is_alpa ? (
+                    <div style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.85rem' }}>
+                      Tidak hadir / absen di hari kerja
                     </div>
+                  ) : (
+                    <>
+                      <div>
+                        <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>Masuk: </span>
+                        <strong>{att.jam_checkin ? formatJam(att.jam_checkin) : '—'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>Pulang: </span>
+                        <strong>{att.jam_checkout ? formatJam(att.jam_checkout) : '—'}</strong>
+                      </div>
+                      {att.menit_telat > 0 && (
+                        <div style={{ color: 'var(--warning)', fontWeight: 700 }}>
+                          +{att.menit_telat} mnt telat
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Kanan: Badge + Potongan */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                  <Badge variant={STATUS_BADGE[att.status] || 'default'}>
-                    {STATUS_LABEL[att.status] || att.status?.toUpperCase()}
+                  <Badge variant={att.is_alpa ? 'danger' : STATUS_BADGE[att.status] || 'default'}>
+                    {att.is_alpa ? 'Off / Alpa' : STATUS_LABEL[att.status] || att.status?.toUpperCase()}
                   </Badge>
-                  {att.potongan_telat > 0 && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--danger)' }}>
+                  {att.is_alpa && att.potongan_off > 0 && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--danger)' }}>
+                      -{formatRupiah(att.potongan_off)}
+                    </span>
+                  )}
+                  {!att.is_alpa && att.potongan_telat > 0 && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--danger)' }}>
                       -{formatRupiah(att.potongan_telat)}
                     </span>
                   )}

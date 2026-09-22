@@ -115,6 +115,30 @@ export function kalkulasiPayrollKaryawan({
 
   const { startDate, endDate } = getPayrollPeriod(employee, periodeBulan, periodeTahun)
 
+  // Jika seluruh periode berakhir sebelum karyawan resmi bergabung, karyawan belum aktif di periode ini
+  if (employee.tanggal_mulai && endDate < employee.tanggal_mulai) {
+    return {
+      employee_id: employee.id,
+      periode_bulan: periodeBulan,
+      periode_tahun: periodeTahun,
+      gaji_pokok: 0,
+      total_hari_hadir: 0,
+      total_hari_telat: 0,
+      total_hari_off: 0,
+      total_hari_libur_masuk: 0,
+      total_potongan_telat: 0,
+      total_potongan_off: 0,
+      total_potongan_kasbon: 0,
+      total_bonus_libur: 0,
+      total_bonus_manual: 0,
+      adjustment: 0,
+      total_gaji: 0,
+      periode_start: startDate,
+      periode_end: endDate,
+      belum_bergabung: true,
+    }
+  }
+
   // Tanggal hari ini dalam WIB (UTC+7) secara eksplisit
   const now = new Date()
   const wibTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)

@@ -94,14 +94,13 @@ export default async function PayrollPage({ searchParams }) {
               null,
               {
                 employeeId: item.employee_id || item.profiles?.id,
-                periodeBulan: currentMonth,
-                periodeTahun: currentYear,
+                periodeBulan: item.periode_bulan || currentMonth,
+                periodeTahun: item.periode_tahun || currentYear,
               }
             )
-            const tglGajian = item.profiles?.tanggal_mulai ? new Date(item.profiles.tanggal_mulai).getDate() : 1
-            const empForPeriod = { tanggal_mulai: item.profiles?.tanggal_mulai }
-            const { startDate: pStart, endDate: pEnd } = getPayrollPeriod(empForPeriod, currentMonth, currentYear)
-            const fmtRange = (d) => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+            const pStart = item.periode_start
+            const pEnd = item.periode_end
+            const fmtRange = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'
 
             return (
               <Card key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>

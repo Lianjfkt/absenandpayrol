@@ -9,6 +9,7 @@ export function OwnerAnalyticsView({
   employees = [],
   monthlyAttendance = [],
   activeLoans = [],
+  settings = {},
   currentMonth,
   currentYear,
 }) {
@@ -23,45 +24,72 @@ export function OwnerAnalyticsView({
     return getPayrollPeriod(emp, periodeBulan, periodeTahun)
   }
 
-  // Ambil attendance yang masuk ke dalam periode aktif masing-masing karyawan
-  const periodAttendance = monthlyAttendance.filter((a) => {
-    const emp = employees.find((e) => e.id === a.employee_id)
-    if (!emp) return true
-    const { startDate, endDate } = getEmpActivePeriod(emp)
-    return a.tanggal >= startDate && a.tanggal <= endDate
-  })
-
-  // 1. Hitung total metrik kehadiran periode berjalan
-  const totalHadir = periodAttendance.filter((a) => a.status === 'hadir').length
-  const totalTelat = periodAttendance.filter((a) => a.status === 'telat').length
-  const totalOff = periodAttendance.filter((a) => a.status === 'off').length
-  const totalEvents = Math.max(1, totalHadir + totalTelat + totalOff)
-
-  const pctHadir = Math.round((totalHadir / totalEvents) * 100)
-  const pctTelat = Math.round((totalTelat / totalEvents) * 100)
-  const pctOff = Math.round((totalOff / totalEvents) * 100)
-
-  // 2. Ranking Staf berdasarkan Kedisiplinan dalam periode berjalan
+  // 1. Hitung statistik absensi per staf berdasarkan tanggal bergabung & periode aktif
   const staffStats = employees.map((emp) => {
     const { startDate, endDate } = getEmpActivePeriod(emp)
     const empAtt = monthlyAttendance.filter((a) => a.employee_id === emp.id && a.tanggal >= startDate && a.tanggal <= endDate)
-    const empHadir = empAtt.filter((a) => a.status === 'hadir').length
-    const empTelat = empAtt.filter((a) => a.status === 'telat').length
-    const empOff = empAtt.filter((a) => a.status === 'off').length
-    const totalMenitTelat = empAtt.reduce((acc, a) => acc + (a.menit_telat || 0), 0)
+    const empAttMap = new Map(empAtt.map((a) => [a.tanggal, a]))
 
-    const totalDays = empAtt.length
+    let empHadir = 0
+    let empTelat = 0
+    let empOff = 0
+    let totalPotonganTelat = 0
+
+    const joinDate = emp.tanggal_mulai || startDate
+    const effectiveStart = startDate > joinDate ? startDate : joinDate
+    const endLimit = todayStr < endDate ? todayStr : endDate
+
+    const cur = new Date(effectiveStart + 'T00:00:00Z')
+    const end = new Date(endLimit + 'T00:00:00Z')
+
+    while (cur <= end) {
+      const dStr = cur.toISOString().split('T')[0]
+      const dayOfWeek = cur.getUTCDay()
+      const isWeeklyOff = dayOfWeek === (emp.hari_libur ?? 0)
+      const att = empAttMap.get(dStr)
+
+      if (att) {
+        if (att.status === 'hadir') {
+          empHadir++
+        } else if (att.status === 'telat') {
+          empTelat++
+          totalPotonganTelat += (att.potongan_telat || 0)
+        } else if (att.status === 'off') {
+          empOff++
+        }
+      } else if (!isWeeklyOff) {
+        // Alpa: hari kerja tanpa presensi sejak tanggal bergabung
+        empOff++
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1)
+    }
+
+    const totalDays = empHadir + empTelat + empOff
     const onTimeScore = totalDays > 0 ? Math.round((empHadir / totalDays) * 100) : 100
+    const totalPotonganOff = empOff * (settings?.potongan_off ?? 50000)
 
     return {
       ...emp,
       hadir: empHadir,
       telat: empTelat,
       off: empOff,
-      totalMenitTelat,
+      totalPotonganTelat,
+      totalPotonganOff,
+      totalPotongan: totalPotonganTelat + totalPotonganOff,
+      totalMenitTelat: empAtt.reduce((acc, a) => acc + (a.menit_telat || 0), 0),
       onTimeScore,
     }
   })
+
+  // 2. Hitung total metrik kehadiran periode berjalan dari seluruh staf
+  const totalHadir = staffStats.reduce((acc, s) => acc + s.hadir, 0)
+  const totalTelat = staffStats.reduce((acc, s) => acc + s.telat, 0)
+  const totalOff = staffStats.reduce((acc, s) => acc + s.off, 0)
+  const totalEvents = Math.max(1, totalHadir + totalTelat + totalOff)
+
+  const pctHadir = Math.round((totalHadir / totalEvents) * 100)
+  const pctTelat = Math.round((totalTelat / totalEvents) * 100)
+  const pctOff = Math.round((totalOff / totalEvents) * 100)
 
   // Urutkan staf paling rajin (onTimeScore tertinggi)
   const topDisciplined = [...staffStats].sort((a, b) => b.onTimeScore - a.onTimeScore || a.telat - b.telat).slice(0, 3)
@@ -71,7 +99,7 @@ export function OwnerAnalyticsView({
 
   // 3. Proyeksi Anggaran Penggajian Berjalan
   const totalGajiPokokSemua = employees.reduce((acc, e) => acc + (e.gaji_pokok || 0), 0)
-  const totalPotonganBerjalan = periodAttendance.reduce((acc, a) => acc + (a.potongan_telat || 0), 0)
+  const totalPotonganBerjalan = staffStats.reduce((acc, s) => acc + s.totalPotongan, 0)
   const totalKasbonBeredar = activeLoans.reduce((acc, l) => acc + (l.sisa_pinjaman || 0), 0)
 
   return (
@@ -177,12 +205,12 @@ export function OwnerAnalyticsView({
         {/* Perlu Perhatian */}
         <Card variant="default">
           <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--warning)', margin: '0 0 0.75rem 0' }}>
-            ⚠️ Catatan Keterlambatan
+            ⚠️ Pelanggaran Disiplin Berjalan
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {needsAttention.length === 0 ? (
               <div style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
-                ✨ Luar biasa! Seluruh staf tidak ada yang telat bulan ini.
+                ✨ Luar biasa! Seluruh staf tepat waktu dan tidak ada alpa.
               </div>
             ) : (
               needsAttention.map((staf) => (
@@ -201,12 +229,14 @@ export function OwnerAnalyticsView({
                   <div>
                     <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{staf.nama}</div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--ink-muted)' }}>
-                      Akumulasi Telat: {staf.totalMenitTelat} menit
+                      {staf.telat > 0 && `Telat: ${staf.telat}x (${staf.totalMenitTelat} mnt) · `}
+                      {staf.off > 0 && `Alpa/Off: ${staf.off}x`}
                     </div>
                   </div>
-                  <Badge variant="warning" size="sm">
-                    {staf.telat}x Telat
-                  </Badge>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.15rem' }}>
+                    {staf.telat > 0 && <Badge variant="warning" size="sm">{staf.telat}x Telat</Badge>}
+                    {staf.off > 0 && <Badge variant="danger" size="sm">{staf.off}x Alpa</Badge>}
+                  </div>
                 </div>
               ))
             )}
