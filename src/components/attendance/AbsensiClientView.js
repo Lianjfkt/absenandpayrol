@@ -19,6 +19,7 @@ export function AbsensiClientView({
   history = [],
   employees = [],
   settings = {},
+  userProfile = null,
 }) {
   const router = useRouter()
 
@@ -525,6 +526,8 @@ export function AbsensiClientView({
                     type="date"
                     value={selectedTanggal}
                     onChange={(e) => setSelectedTanggal(e.target.value)}
+                    min={employees.find((e) => e.id === selectedEmployeeId)?.tanggal_mulai || undefined}
+                    max={new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     required
                     style={{
                       width: '100%',

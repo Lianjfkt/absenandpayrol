@@ -12,8 +12,9 @@ export default async function RekapKaryawanPage({ params, searchParams }) {
   const sp = await searchParams
 
   const now = new Date()
-  const currentMonth = parseInt(sp?.bulan || (now.getMonth() + 1).toString(), 10)
-  const currentYear = parseInt(sp?.tahun || now.getFullYear().toString(), 10)
+  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const currentMonth = parseInt(sp?.bulan || (wibNow.getUTCMonth() + 1).toString(), 10)
+  const currentYear = parseInt(sp?.tahun || wibNow.getUTCFullYear().toString(), 10)
 
   const supabase = await createClient()
 

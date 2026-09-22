@@ -25,9 +25,9 @@ export default async function DashboardPage() {
   const isOwner = profile?.role === ROLES.OWNER
   const db = isOwner ? getDbClient(supabase) : supabase
   const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
   const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const currentMonth = wibNow.getUTCMonth() + 1
+  const currentYear = wibNow.getUTCFullYear()
   const todayStr = wibNow.toISOString().split('T')[0]
   const todayDay = wibNow.getUTCDay()
   const isHariLibur = todayDay === profile?.hari_libur

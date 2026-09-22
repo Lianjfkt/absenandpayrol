@@ -3,6 +3,9 @@ import { getDbClient } from '@/lib/supabase/admin'
 import { AbsensiClientView } from '@/components/attendance/AbsensiClientView'
 import { ROLES, DEFAULT_SETTINGS } from '@/lib/constants'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function AbsensiPage() {
   const supabase = await createClient()
 
@@ -11,27 +14,60 @@ export default async function AbsensiPage() {
 
   const isOwner = profile?.role === ROLES.OWNER
   const db = isOwner ? getDbClient(supabase) : supabase
-  const todayStr = new Date().toISOString().split('T')[0]
-  const todayDay = new Date().getDay()
+
+  // Gunakan WIB (UTC+7) agar tanggal dan hari tidak meleset di server UTC
+  const now = new Date()
+  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const todayStr = wibNow.toISOString().split('T')[0]
+  const todayDay = wibNow.getUTCDay()
   const isHariLibur = todayDay === profile?.hari_libur
 
-  // Ambil data absensi & data pendukung secara paralel
-  let historyQuery = db
-    .from('attendance')
-    .select('*, profiles:employee_id(nama, jabatan)')
-    .order('tanggal', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(60)
+  let historyQuery
+  let employees = []
+  let currentSettings = DEFAULT_SETTINGS
 
-  if (!isOwner) {
-    historyQuery = historyQuery.eq('employee_id', user.id)
+  if (isOwner) {
+    // Ambil semua karyawan aktif beserta tanggal_mulai untuk validasi tanggal modal
+    const [allProfilesRes, settingsRes] = await Promise.all([
+      db.from('profiles').select('id, nama, jabatan, status_aktif, role, tanggal_mulai, hari_libur').order('nama', { ascending: true }),
+      db.from('settings').select('*').eq('id', 1).maybeSingle(),
+    ])
+
+    employees = (allProfilesRes.data || []).filter(
+      (p) => p.role !== 'owner' && p.status_aktif !== false
+    )
+    currentSettings = settingsRes.data || DEFAULT_SETTINGS
+
+    // Query history mulai dari tanggal bergabung paling awal di antara semua karyawan
+    const earliestDate = employees.reduce((earliest, emp) => {
+      if (emp.tanggal_mulai && emp.tanggal_mulai < earliest) return emp.tanggal_mulai
+      return earliest
+    }, todayStr)
+
+    historyQuery = db
+      .from('attendance')
+      .select('*, profiles:employee_id(nama, jabatan)')
+      .gte('tanggal', earliestDate)
+      .order('tanggal', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100)
+  } else {
+    // Karyawan: tampilkan history mulai dari tanggal bergabung saja
+    const sinceDate = profile?.tanggal_mulai || todayStr
+
+    historyQuery = db
+      .from('attendance')
+      .select('*, profiles:employee_id(nama, jabatan)')
+      .eq('employee_id', user.id)
+      .gte('tanggal', sinceDate)
+      .order('tanggal', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100)
   }
 
   const [
     { data: todayAttendance },
     { data: history },
-    allProfilesRes,
-    settingsRes,
   ] = await Promise.all([
     db
       .from('attendance')
@@ -40,18 +76,7 @@ export default async function AbsensiPage() {
       .eq('tanggal', todayStr)
       .maybeSingle(),
     historyQuery,
-    isOwner
-      ? db.from('profiles').select('id, nama, jabatan, status_aktif, role').order('nama', { ascending: true })
-      : Promise.resolve({ data: [] }),
-    isOwner
-      ? db.from('settings').select('*').eq('id', 1).maybeSingle()
-      : Promise.resolve({ data: null }),
   ])
-
-  const employees = (allProfilesRes.data || []).filter(
-    (p) => p.role !== 'owner' && p.status_aktif !== false
-  )
-  const currentSettings = settingsRes.data || DEFAULT_SETTINGS
 
   return (
     <AbsensiClientView
@@ -61,7 +86,9 @@ export default async function AbsensiPage() {
       history={history || []}
       employees={employees}
       settings={currentSettings}
+      userProfile={profile}
     />
   )
 }
+
 
