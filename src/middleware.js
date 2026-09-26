@@ -31,9 +31,14 @@ export async function middleware(request) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch {
+    // Supabase tidak tersedia — izinkan request lewat tanpa autentikasi
+    return response
+  }
 
   const { pathname } = request.nextUrl
 
@@ -56,6 +61,7 @@ export async function middleware(request) {
   }
 
   return response
+
 }
 
 export const config = {

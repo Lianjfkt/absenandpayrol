@@ -29,6 +29,8 @@ export async function updateSettingsAction(formData) {
   const tier1_rate = parseInt(formData.get('tier1_rate') || '1000', 10)
   const tier2_rate = parseInt(formData.get('tier2_rate') || '2000', 10)
   const tier3_flat = parseInt(formData.get('tier3_flat') || '50000', 10)
+  const tier1_durasi = parseInt(formData.get('tier1_durasi') || '10', 10)
+  const tier2_durasi = parseInt(formData.get('tier2_durasi') || '10', 10)
 
   const payload = {
     id: 1,
@@ -46,6 +48,8 @@ export async function updateSettingsAction(formData) {
     tier1_rate,
     tier2_rate,
     tier3_flat,
+    tier1_durasi,
+    tier2_durasi,
     updated_at: new Date().toISOString(),
   }
 

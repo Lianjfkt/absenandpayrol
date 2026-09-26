@@ -116,7 +116,9 @@ export function AbsensiClientView({
     setJamPulang(effPulang)
     if (selectedStatus === ATTENDANCE_STATUS.TELAT) {
       try {
-        const checkInDate = new Date(`${val}T${effMasuk}:00+07:00`)
+        // BUG-04 FIX: gunakan jamMasuk (input user aktual), bukan effMasuk (standar jadwal)
+        const currentJamMasuk = jamMasuk || effMasuk
+        const checkInDate = new Date(`${val}T${currentJamMasuk}:00+07:00`)
         const mTelat = hitungMenitTelat(checkInDate, effMasuk)
         const pTelat = hitungPotonganTelat(mTelat, settings)
         setMenitTelat(mTelat)
@@ -150,12 +152,10 @@ export function AbsensiClientView({
       const checkInDate = new Date(`${selectedTanggal}T${jamMasuk}:00+07:00`)
       const targetMasuk = getJamMasukEfektif(selectedTanggal, settings)
       const mTelat = hitungMenitTelat(checkInDate, targetMasuk)
+      // BUG-05 FIX: hapus referensi ke settings.potongan_telat_default yang tidak ada
       const pTelat = hitungPotonganTelat(mTelat, settings)
       setMenitTelat(mTelat)
-      setPotonganTelat(pTelat > 0 ? pTelat : (settings?.potongan_telat_default || 5000))
-    } else if (val === ATTENDANCE_STATUS.HADIR) {
-      setPotonganTelat(0)
-      setMenitTelat(0)
+      setPotonganTelat(pTelat)
     } else {
       setPotonganTelat(0)
       setMenitTelat(0)

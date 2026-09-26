@@ -173,6 +173,24 @@ export default async function PengaturanPage() {
             />
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.65rem' }}>
+            <Input
+              label="Durasi Tier 1 (Menit)"
+              name="tier1_durasi"
+              type="number"
+              defaultValue={s.tier1_durasi ?? 10}
+              required
+            />
+            <Input
+              label="Durasi Tier 2 (Menit)"
+              name="tier2_durasi"
+              type="number"
+              defaultValue={s.tier2_durasi ?? 10}
+              required
+            />
+          </div>
+
+
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', marginTop: '0.5rem', margin: 0 }}>
             4. Potongan Off & Bonus Masuk Libur
           </h3>
