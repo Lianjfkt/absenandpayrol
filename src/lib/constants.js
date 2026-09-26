@@ -45,6 +45,8 @@ export const DEFAULT_SETTINGS = {
   radius_meter: 30,
   jam_masuk: '07:00',
   jam_pulang: '18:00',
+  jam_masuk_minggu: '08:00',
+  jam_pulang_minggu: '18:00',
   toleransi_telat_menit: 5,
   potongan_off: 50000,
   bonus_masuk_libur: 50000,

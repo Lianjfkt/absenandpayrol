@@ -24,19 +24,21 @@ export default async function AbsensiPage() {
 
   let historyQuery
   let employees = []
-  let currentSettings = DEFAULT_SETTINGS
+
+  // Ambil settings kedai aktif untuk validasi jam kerja & toleransi
+  const { data: settingsData } = await db.from('settings').select('*').eq('id', 1).maybeSingle()
+  const currentSettings = settingsData || DEFAULT_SETTINGS
 
   if (isOwner) {
     // Ambil semua karyawan aktif beserta tanggal_mulai untuk validasi tanggal modal
-    const [allProfilesRes, settingsRes] = await Promise.all([
-      db.from('profiles').select('id, nama, jabatan, status_aktif, role, tanggal_mulai, hari_libur').order('nama', { ascending: true }),
-      db.from('settings').select('*').eq('id', 1).maybeSingle(),
-    ])
+    const { data: allProfiles } = await db
+      .from('profiles')
+      .select('id, nama, jabatan, status_aktif, role, tanggal_mulai, hari_libur')
+      .order('nama', { ascending: true })
 
-    employees = (allProfilesRes.data || []).filter(
+    employees = (allProfiles || []).filter(
       (p) => p.role !== 'owner' && p.status_aktif !== false
     )
-    currentSettings = settingsRes.data || DEFAULT_SETTINGS
 
     // Query history mulai dari tanggal bergabung paling awal di antara semua karyawan
     const earliestDate = employees.reduce((earliest, emp) => {

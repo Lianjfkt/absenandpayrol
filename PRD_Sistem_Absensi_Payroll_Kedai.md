@@ -56,7 +56,7 @@ Saat ini pencatatan absensi dan perhitungan gaji dilakukan manual, rawan human e
 - Karyawan check-in & check-out lewat tombol di app; sistem merekam koordinat GPS saat itu.
 - Sistem membandingkan lokasi karyawan dengan titik koordinat kedai; radius toleransi lokasi **10 meter** (lihat catatan teknis di Bagian 7).
 - Toleransi waktu keterlambatan: **5 menit** dari jam masuk — check-in dalam 5 menit pertama masih dihitung **Hadir**.
-- Jam kerja standar: **07:00 – 18:00**, dapat diubah owner kapan saja lewat Pengaturan.
+- Jam kerja standar: **07:00 – 18:00** (Senin – Sabtu) dan khusus **Hari Minggu: masuk jam 08:00 – 18:00**, dapat diubah owner kapan saja lewat Pengaturan.
 - Status absensi dihitung otomatis per hari:
   - **Hadir** — check-in dalam batas toleransi 5 menit
   - **Telat** — check-in lewat dari 5 menit setelah jam masuk (skema potongan bertingkat, lihat Bagian 6)

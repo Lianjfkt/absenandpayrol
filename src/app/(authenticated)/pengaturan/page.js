@@ -85,21 +85,56 @@ export default async function PengaturanPage() {
             2. Jam Kerja & Toleransi
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
-            <Input
-              label="Jam Masuk Standar"
-              name="jam_masuk"
-              type="time"
-              defaultValue={s.jam_masuk || '07:00'}
-              required
-            />
-            <Input
-              label="Jam Pulang Standar"
-              name="jam_pulang"
-              type="time"
-              defaultValue={s.jam_pulang || '18:00'}
-              required
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ padding: '0.85rem 1rem', borderRadius: 'var(--radius-card)', background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '0.6rem' }}>
+                📅 Jadwal Standar (Senin – Sabtu)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <Input
+                  label="Jam Masuk Standar"
+                  name="jam_masuk"
+                  type="time"
+                  defaultValue={s.jam_masuk ? s.jam_masuk.slice(0, 5) : '07:00'}
+                  required
+                />
+                <Input
+                  label="Jam Pulang Standar"
+                  name="jam_pulang"
+                  type="time"
+                  defaultValue={s.jam_pulang ? s.jam_pulang.slice(0, 5) : '18:00'}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: '0.85rem 1rem', borderRadius: 'var(--radius-card)', background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.25)' }}>
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span>☀️ Jadwal Khusus Hari Minggu</span>
+                <span style={{ fontSize: '0.75rem', background: 'var(--accent)', color: '#ffffff', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
+                  Masuk Jam 8 Pagi
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <Input
+                  label="Jam Masuk Hari Minggu"
+                  name="jam_masuk_minggu"
+                  type="time"
+                  defaultValue={s.jam_masuk_minggu ? s.jam_masuk_minggu.slice(0, 5) : '08:00'}
+                  required
+                />
+                <Input
+                  label="Jam Pulang Hari Minggu"
+                  name="jam_pulang_minggu"
+                  type="time"
+                  defaultValue={s.jam_pulang_minggu ? s.jam_pulang_minggu.slice(0, 5) : '18:00'}
+                  required
+                />
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', marginTop: '0.5rem' }}>
+                * Presensi check-in pada hari Minggu otomatis dihitung toleransi & keterlambatannya dari jam masuk ini (default 08:00).
+              </div>
+            </div>
           </div>
 
           <Input

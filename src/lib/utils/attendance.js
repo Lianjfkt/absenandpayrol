@@ -76,19 +76,65 @@ export function hitungPotonganTelat(menitTelat, settings = DEFAULT_SETTINGS) {
 }
 
 /**
+ * Mengembalikan hari dalam seminggu (0 = Minggu, 1 = Senin, ... 6 = Sabtu) dalam zona WIB
+ * @param {Date|string} dateOrStr 
+ * @returns {number}
+ */
+export function getDayOfWeekWIB(dateOrStr) {
+  if (typeof dateOrStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOrStr)) {
+    const [y, m, d] = dateOrStr.split('-').map(Number)
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+  }
+  const d = new Date(dateOrStr)
+  const wibEpoch = d.getTime() + WIB_OFFSET_MS
+  return new Date(wibEpoch).getUTCDay()
+}
+
+/**
+ * Mendapatkan jam masuk efektif kedai (Hari Minggu vs Hari Biasa)
+ * @param {Date|string} dateOrStr
+ * @param {object} settings
+ * @returns {string} Format "HH:mm" atau "HH:mm:ss"
+ */
+export function getJamMasukEfektif(dateOrStr, settings = DEFAULT_SETTINGS) {
+  const dayOfWeek = getDayOfWeekWIB(dateOrStr)
+  if (dayOfWeek === 0) {
+    return settings?.jam_masuk_minggu || '08:00'
+  }
+  return settings?.jam_masuk || '07:00'
+}
+
+/**
+ * Mendapatkan jam pulang efektif kedai (Hari Minggu vs Hari Biasa)
+ * @param {Date|string} dateOrStr
+ * @param {object} settings
+ * @returns {string} Format "HH:mm" atau "HH:mm:ss"
+ */
+export function getJamPulangEfektif(dateOrStr, settings = DEFAULT_SETTINGS) {
+  const dayOfWeek = getDayOfWeekWIB(dateOrStr)
+  if (dayOfWeek === 0) {
+    return settings?.jam_pulang_minggu || '18:00'
+  }
+  return settings?.jam_pulang || '18:00'
+}
+
+/**
  * Menentukan status absensi berdasarkan waktu check in dan hari libur.
  * Hari check-in dievaluasi dalam timezone WIB (UTC+7).
+ * Hari Minggu masuk jam 8 pagi (atau sesuai pengaturan jam_masuk_minggu).
  */
 export function tentukanStatusAbsensi(checkInTime, employeeHariLibur, settings = DEFAULT_SETTINGS) {
   const checkIn = new Date(checkInTime)
   // Gunakan WIB untuk menentukan hari dalam seminggu
-  const wibEpoch = checkIn.getTime() + WIB_OFFSET_MS
-  const wibDate = new Date(wibEpoch)
-  const dayOfWeek = wibDate.getUTCDay() // 0 = Minggu, 1 = Senin, ...
+  const dayOfWeek = getDayOfWeekWIB(checkIn)
   const isHariLibur = dayOfWeek === employeeHariLibur
 
-  const menitTelat = hitungMenitTelat(checkIn, settings.jam_masuk || '07:00')
-  const toleransi = settings.toleransi_telat_menit ?? 5
+  const jamMasukStandar = (dayOfWeek === 0)
+    ? (settings?.jam_masuk_minggu || '08:00')
+    : (settings?.jam_masuk || '07:00')
+
+  const menitTelat = hitungMenitTelat(checkIn, jamMasukStandar)
+  const toleransi = settings?.toleransi_telat_menit ?? 5
 
   if (menitTelat > toleransi) {
     return {
@@ -106,3 +152,4 @@ export function tentukanStatusAbsensi(checkInTime, employeeHariLibur, settings =
     isHariLibur,
   }
 }
+

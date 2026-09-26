@@ -21,6 +21,8 @@ export async function updateSettingsAction(formData) {
   const radius_meter = parseInt(formData.get('radius_meter') || '10', 10)
   const jam_masuk = formData.get('jam_masuk')
   const jam_pulang = formData.get('jam_pulang')
+  const jam_masuk_minggu = formData.get('jam_masuk_minggu') || '08:00'
+  const jam_pulang_minggu = formData.get('jam_pulang_minggu') || '18:00'
   const toleransi_telat_menit = parseInt(formData.get('toleransi_telat_menit') || '5', 10)
   const potongan_off = parseInt(formData.get('potongan_off') || '50000', 10)
   const bonus_masuk_libur = parseInt(formData.get('bonus_masuk_libur') || '50000', 10)
@@ -28,26 +30,36 @@ export async function updateSettingsAction(formData) {
   const tier2_rate = parseInt(formData.get('tier2_rate') || '2000', 10)
   const tier3_flat = parseInt(formData.get('tier3_flat') || '50000', 10)
 
-  const { error } = await db
-    .from('settings')
-    .upsert({
-      id: 1,
-      nama_kedai,
-      lokasi_lat,
-      lokasi_lng,
-      radius_meter,
-      jam_masuk,
-      jam_pulang,
-      toleransi_telat_menit,
-      potongan_off,
-      bonus_masuk_libur,
-      tier1_rate,
-      tier2_rate,
-      tier3_flat,
-      updated_at: new Date().toISOString(),
-    })
+  const payload = {
+    id: 1,
+    nama_kedai,
+    lokasi_lat,
+    lokasi_lng,
+    radius_meter,
+    jam_masuk,
+    jam_pulang,
+    jam_masuk_minggu,
+    jam_pulang_minggu,
+    toleransi_telat_menit,
+    potongan_off,
+    bonus_masuk_libur,
+    tier1_rate,
+    tier2_rate,
+    tier3_flat,
+    updated_at: new Date().toISOString(),
+  }
 
-  if (error) {
+  let { error } = await db.from('settings').upsert(payload)
+
+  // Fallback jika migrasi kolom jam_masuk_minggu / jam_pulang_minggu belum dijalankan di Supabase
+  if (error && error.message && (error.message.includes('jam_masuk_minggu') || error.message.includes('jam_pulang_minggu'))) {
+    delete payload.jam_masuk_minggu
+    delete payload.jam_pulang_minggu
+    const retry = await db.from('settings').upsert(payload)
+    if (retry.error) {
+      return { error: `Gagal menyimpan pengaturan: ${retry.error.message}` }
+    }
+  } else if (error) {
     return { error: `Gagal menyimpan pengaturan: ${error.message}` }
   }
 

@@ -10,7 +10,13 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { formatTanggal, formatJam, formatRupiah, ATTENDANCE_STATUS } from '@/lib/constants'
-import { hitungMenitTelat, hitungPotonganTelat } from '@/lib/utils/attendance'
+import {
+  hitungMenitTelat,
+  hitungPotonganTelat,
+  getJamMasukEfektif,
+  getJamPulangEfektif,
+  getDayOfWeekWIB,
+} from '@/lib/utils/attendance'
 
 export function AbsensiClientView({
   isOwner,
@@ -51,8 +57,8 @@ export function AbsensiClientView({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [selectedTanggal, setSelectedTanggal] = useState(new Date().toISOString().split('T')[0])
   const [selectedStatus, setSelectedStatus] = useState(ATTENDANCE_STATUS.HADIR)
-  const [jamMasuk, setJamMasuk] = useState(settings?.jam_masuk ? settings.jam_masuk.slice(0, 5) : '07:00')
-  const [jamPulang, setJamPulang] = useState(settings?.jam_pulang ? settings.jam_pulang.slice(0, 5) : '18:00')
+  const [jamMasuk, setJamMasuk] = useState(() => getJamMasukEfektif(new Date(), settings).slice(0, 5))
+  const [jamPulang, setJamPulang] = useState(() => getJamPulangEfektif(new Date(), settings).slice(0, 5))
   const [potonganTelat, setPotonganTelat] = useState(0)
   const [menitTelat, setMenitTelat] = useState(0)
   const [catatan, setCatatan] = useState('Lupa absen masuk')
@@ -62,10 +68,11 @@ export function AbsensiClientView({
     setSuccessMsg('')
     if (existingData) {
       setSelectedEmployeeId(existingData.employee_id || '')
-      setSelectedTanggal(existingData.tanggal || new Date().toISOString().split('T')[0])
+      const tgl = existingData.tanggal || new Date().toISOString().split('T')[0]
+      setSelectedTanggal(tgl)
       setSelectedStatus(existingData.status || ATTENDANCE_STATUS.HADIR)
       
-      let inTime = settings?.jam_masuk ? settings.jam_masuk.slice(0, 5) : '07:00'
+      let inTime = getJamMasukEfektif(tgl, settings).slice(0, 5)
       if (existingData.jam_checkin) {
         const d = new Date(existingData.jam_checkin)
         const hh = String(d.getHours()).padStart(2, '0')
@@ -74,7 +81,7 @@ export function AbsensiClientView({
       }
       setJamMasuk(inTime)
 
-      let outTime = settings?.jam_pulang ? settings.jam_pulang.slice(0, 5) : '18:00'
+      let outTime = getJamPulangEfektif(tgl, settings).slice(0, 5)
       if (existingData.jam_checkout) {
         const d = new Date(existingData.jam_checkout)
         const hh = String(d.getHours()).padStart(2, '0')
@@ -87,16 +94,37 @@ export function AbsensiClientView({
       setMenitTelat(existingData.menit_telat || 0)
       setCatatan(existingData.catatan || 'Koreksi manual oleh owner')
     } else {
+      const todayStr = new Date().toISOString().split('T')[0]
       setSelectedEmployeeId(employees[0]?.id || '')
-      setSelectedTanggal(new Date().toISOString().split('T')[0])
+      setSelectedTanggal(todayStr)
       setSelectedStatus(ATTENDANCE_STATUS.HADIR)
-      setJamMasuk(settings?.jam_masuk ? settings.jam_masuk.slice(0, 5) : '07:00')
-      setJamPulang(settings?.jam_pulang ? settings.jam_pulang.slice(0, 5) : '18:00')
+      setJamMasuk(getJamMasukEfektif(todayStr, settings).slice(0, 5))
+      setJamPulang(getJamPulangEfektif(todayStr, settings).slice(0, 5))
       setPotonganTelat(0)
       setMenitTelat(0)
       setCatatan('Lupa absen masuk')
     }
     setShowModal(true)
+  }
+
+  // Handle pergantian tanggal di form manual agar jam masuk otomatis sinkron dengan hari (Minggu masuk jam 8 pagi)
+  const handleTanggalChange = (val) => {
+    setSelectedTanggal(val)
+    const effMasuk = getJamMasukEfektif(val, settings).slice(0, 5)
+    const effPulang = getJamPulangEfektif(val, settings).slice(0, 5)
+    setJamMasuk(effMasuk)
+    setJamPulang(effPulang)
+    if (selectedStatus === ATTENDANCE_STATUS.TELAT) {
+      try {
+        const checkInDate = new Date(`${val}T${effMasuk}:00+07:00`)
+        const mTelat = hitungMenitTelat(checkInDate, effMasuk)
+        const pTelat = hitungPotonganTelat(mTelat, settings)
+        setMenitTelat(mTelat)
+        setPotonganTelat(pTelat)
+      } catch (err) {
+        console.error('Hitung telat error:', err)
+      }
+    }
   }
 
   // Auto calculate late minutes and late deduction when jamMasuk or status changes
@@ -105,7 +133,8 @@ export function AbsensiClientView({
     if (selectedStatus === ATTENDANCE_STATUS.TELAT && val && selectedTanggal) {
       try {
         const checkInDate = new Date(`${selectedTanggal}T${val}:00+07:00`)
-        const mTelat = hitungMenitTelat(checkInDate, settings?.jam_masuk || '07:00')
+        const targetMasuk = getJamMasukEfektif(selectedTanggal, settings)
+        const mTelat = hitungMenitTelat(checkInDate, targetMasuk)
         const pTelat = hitungPotonganTelat(mTelat, settings)
         setMenitTelat(mTelat)
         setPotonganTelat(pTelat)
@@ -119,7 +148,8 @@ export function AbsensiClientView({
     setSelectedStatus(val)
     if (val === ATTENDANCE_STATUS.TELAT) {
       const checkInDate = new Date(`${selectedTanggal}T${jamMasuk}:00+07:00`)
-      const mTelat = hitungMenitTelat(checkInDate, settings?.jam_masuk || '07:00')
+      const targetMasuk = getJamMasukEfektif(selectedTanggal, settings)
+      const mTelat = hitungMenitTelat(checkInDate, targetMasuk)
       const pTelat = hitungPotonganTelat(mTelat, settings)
       setMenitTelat(mTelat)
       setPotonganTelat(pTelat > 0 ? pTelat : (settings?.potongan_telat_default || 5000))
@@ -226,7 +256,36 @@ export function AbsensiClientView({
       )}
 
       {/* Area Check-In untuk Karyawan atau Owner */}
-      <Card style={{ padding: '2rem 1.25rem', display: 'flex', justifyContent: 'center' }}>
+      <Card style={{ padding: '2rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.4rem 0.85rem',
+          borderRadius: 'var(--radius-pill)',
+          background: 'var(--surface-muted)',
+          fontSize: '0.825rem',
+          fontWeight: 600,
+          color: 'var(--ink-muted)',
+          border: '1px solid var(--border)',
+        }}>
+          <span>⏰ Jadwal Masuk Hari Ini:</span>
+          <span style={{ color: 'var(--ink)', fontWeight: 800 }}>
+            {getJamMasukEfektif(new Date(), settings).slice(0, 5)} WIB
+          </span>
+          {getDayOfWeekWIB(new Date()) === 0 && (
+            <span style={{
+              background: 'var(--accent)',
+              color: '#ffffff',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+            }}>
+              Hari Minggu (08:00)
+            </span>
+          )}
+        </div>
         <CheckInButton todayAttendance={todayAttendance} isHariLibur={isHariLibur} />
       </Card>
 
@@ -525,7 +584,7 @@ export function AbsensiClientView({
                   <input
                     type="date"
                     value={selectedTanggal}
-                    onChange={(e) => setSelectedTanggal(e.target.value)}
+                    onChange={(e) => handleTanggalChange(e.target.value)}
                     min={employees.find((e) => e.id === selectedEmployeeId)?.tanggal_mulai || undefined}
                     max={new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     required

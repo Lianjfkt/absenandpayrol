@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS public.settings (
   radius_meter INTEGER DEFAULT 10,
   jam_masuk TIME DEFAULT '07:00:00',
   jam_pulang TIME DEFAULT '18:00:00',
+  jam_masuk_minggu TIME DEFAULT '08:00:00',
+  jam_pulang_minggu TIME DEFAULT '18:00:00',
   toleransi_telat_menit INTEGER DEFAULT 5,
   potongan_off INTEGER DEFAULT 50000,
   bonus_masuk_libur INTEGER DEFAULT 50000,
