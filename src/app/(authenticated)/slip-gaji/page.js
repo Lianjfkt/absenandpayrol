@@ -31,13 +31,16 @@ export default async function SlipGajiKaryawanPage() {
   // Sinkronisasi otomatis payroll berjalan karyawan jika belum lunas
   await syncSingleEmployeePayroll(db, user.id, activeMonth, activeYear)
 
-  // Ambil data payroll milik karyawan yang sedang login
-  const { data: slipList } = await db
-    .from('payroll')
-    .select('*')
-    .eq('employee_id', user.id)
-    .order('periode_tahun', { ascending: false })
-    .order('periode_bulan', { ascending: false })
+  // Ambil data payroll milik karyawan yang sedang login dan setting kedai
+  const [{ data: slipList }, { data: settings }] = await Promise.all([
+    db
+      .from('payroll')
+      .select('*')
+      .eq('employee_id', user.id)
+      .order('periode_tahun', { ascending: false })
+      .order('periode_bulan', { ascending: false }),
+    db.from('settings').select('*').eq('id', 1).maybeSingle(),
+  ])
 
   const tglGajian = profile?.tanggal_mulai ? new Date(profile.tanggal_mulai).getDate() : 1
 
@@ -161,7 +164,7 @@ export default async function SlipGajiKaryawanPage() {
             </div>
 
             {/* Aksi Cetak & WA Share */}
-            <SlipActions slip={slip} namaKaryawan={profile?.nama || 'Karyawan'} />
+            <SlipActions slip={slip} namaKaryawan={profile?.nama || 'Karyawan'} settings={settings || {}} />
           </Card>
         ))
       )}

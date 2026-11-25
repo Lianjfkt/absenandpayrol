@@ -31,6 +31,7 @@ export async function updateSettingsAction(formData) {
   const tier3_flat = parseInt(formData.get('tier3_flat') || '50000', 10)
   const tier1_durasi = parseInt(formData.get('tier1_durasi') || '10', 10)
   const tier2_durasi = parseInt(formData.get('tier2_durasi') || '10', 10)
+  const whatsapp_template = formData.get('whatsapp_template') || null
 
   const payload = {
     id: 1,
@@ -50,15 +51,21 @@ export async function updateSettingsAction(formData) {
     tier3_flat,
     tier1_durasi,
     tier2_durasi,
+    whatsapp_template,
     updated_at: new Date().toISOString(),
   }
 
   let { error } = await db.from('settings').upsert(payload)
 
-  // Fallback jika migrasi kolom jam_masuk_minggu / jam_pulang_minggu belum dijalankan di Supabase
-  if (error && error.message && (error.message.includes('jam_masuk_minggu') || error.message.includes('jam_pulang_minggu'))) {
-    delete payload.jam_masuk_minggu
-    delete payload.jam_pulang_minggu
+  // Fallback jika migrasi kolom baru belum dijalankan di Supabase
+  if (error && error.message && (error.message.includes('jam_masuk_minggu') || error.message.includes('jam_pulang_minggu') || error.message.includes('whatsapp_template'))) {
+    if (error.message.includes('jam_masuk_minggu') || error.message.includes('jam_pulang_minggu')) {
+      delete payload.jam_masuk_minggu
+      delete payload.jam_pulang_minggu
+    }
+    if (error.message.includes('whatsapp_template')) {
+      delete payload.whatsapp_template
+    }
     const retry = await db.from('settings').upsert(payload)
     if (retry.error) {
       return { error: `Gagal menyimpan pengaturan: ${retry.error.message}` }

@@ -6,7 +6,7 @@ import { generateSlipGajiPDF } from '@/lib/utils/pdfGenerator'
 
 export function SlipActions({ slip, namaKaryawan, isOwner = false, settings = {}, employee = {} }) {
   const handleShareWA = () => {
-    const text = generateWhatsAppSlipText(namaKaryawan, slip)
+    const text = generateWhatsAppSlipText(namaKaryawan, slip, settings?.whatsapp_template)
     window.open(`https://wa.me/?text=${text}`, '_blank')
   }
 

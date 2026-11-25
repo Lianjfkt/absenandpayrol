@@ -1,3 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { createEmployeeAction } from '@/actions/employees'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -7,6 +9,22 @@ import Link from 'next/link'
 import { HARI } from '@/lib/constants'
 
 export default async function TambahKaryawanPage({ searchParams }) {
+  const supabase = await createClient()
+
+  // Guard: hanya owner yang berhak menambah karyawan
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'owner') {
+    redirect('/dashboard')
+  }
+
   const params = await searchParams
   const errorMsg = params?.error
 

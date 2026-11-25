@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-export async function updateSession(request) {
+export async function proxy(request) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -31,24 +31,29 @@ export async function updateSession(request) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch {
+    // Supabase tidak tersedia — izinkan request lewat
+    return response
+  }
 
   const { pathname } = request.nextUrl
 
-  // Halaman public
+  // Rute login dan callback adalah rute publik
   const isLoginPage = pathname === '/login'
   const isAuthCallback = pathname.startsWith('/auth/callback')
 
-  // Belum login tapi mencoba akses halaman terproteksi
+  // Jika belum login dan mencoba masuk ke rute selain login
   if (!user && !isLoginPage && !isAuthCallback) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Sudah login tapi masih di halaman login
+  // Jika sudah login dan masih di /login
   if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
@@ -57,3 +62,10 @@ export async function updateSession(request) {
 
   return response
 }
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+

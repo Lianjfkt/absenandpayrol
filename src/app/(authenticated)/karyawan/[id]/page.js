@@ -12,6 +12,21 @@ import { HARI } from '@/lib/constants'
 export default async function EditKaryawanPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
+
+  // Guard: hanya owner yang berhak mengakses & mengedit data karyawan
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'owner') {
+    redirect('/dashboard')
+  }
+
   const db = getDbClient(supabase)
 
   const { data: employee } = await db

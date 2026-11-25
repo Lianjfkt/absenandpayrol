@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/supabase/admin'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -18,17 +18,35 @@ export const revalidate = 0
 export default async function DetailPayrollPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
+
+  // Guard: hanya owner yang berhak mengakses detail penggajian semua karyawan
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'owner') {
+    redirect('/dashboard')
+  }
+
   const db = getDbClient(supabase)
 
-  // Ambil record payroll awal
-  let { data: initialPayroll } = await db
-    .from('payroll')
-    .select('*, profiles(*)')
-    .eq('id', id)
-    .maybeSingle()
+  // Ambil record payroll awal dan setting kedai secara paralel
+  const [
+    { data: initialPayroll },
+    { data: settingsData }
+  ] = await Promise.all([
+    db.from('payroll').select('*, profiles(*)').eq('id', id).maybeSingle(),
+    db.from('settings').select('*').eq('id', 1).maybeSingle(),
+  ])
 
   if (!initialPayroll) notFound()
 
+  const currentSettings = settingsData || DEFAULT_SETTINGS
   let payroll = initialPayroll
 
   // Jika belum dibayar, hitung real-time dan update ke DB
@@ -41,8 +59,7 @@ export default async function DetailPayrollPage({ params }) {
     const [
       { data: attendances },
       { data: bonuses },
-      { data: activeLoans },
-      { data: settings },
+      { data: activeLoans }
     ] = await Promise.all([
       db
         .from('attendance')
@@ -61,10 +78,8 @@ export default async function DetailPayrollPage({ params }) {
         .select('*')
         .eq('employee_id', emp.id)
         .eq('status', 'aktif'),
-      db.from('settings').select('*').eq('id', 1).maybeSingle(),
     ])
 
-    const currentSettings = settings || DEFAULT_SETTINGS
     const adj = initialPayroll.adjustment || 0
 
     const calcResult = kalkulasiPayrollKaryawan({
@@ -192,6 +207,14 @@ export default async function DetailPayrollPage({ params }) {
               </span>
               <span style={{ color: 'var(--danger)', fontWeight: 600 }}>-{formatRupiah(payroll.total_potongan_off)}</span>
             </div>
+            {payroll.total_potongan_kasbon > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '0.75rem' }}>
+                <span style={{ color: 'var(--ink-muted)' }}>
+                  Potongan Kasbon / Cicilan Pinjaman
+                </span>
+                <span style={{ color: 'var(--danger)', fontWeight: 600 }}>-{formatRupiah(payroll.total_potongan_kasbon)}</span>
+              </div>
+            )}
           </div>
 
           <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -238,6 +261,7 @@ export default async function DetailPayrollPage({ params }) {
               namaKaryawan={payroll.profiles?.nama || 'Karyawan'}
               isOwner={true}
               employee={payroll.profiles || {}}
+              settings={currentSettings}
             />
           </div>
         </div>

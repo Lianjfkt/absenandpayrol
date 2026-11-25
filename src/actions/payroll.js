@@ -536,6 +536,19 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
           })
           .eq('id', loan.id)
 
+        // Catat ke ledger loan_repayments jika tabel tersedia
+        try {
+          await db.from('loan_repayments').insert({
+            loan_id: loan.id,
+            payroll_id: targetId,
+            employee_id: currentPayroll.employee_id,
+            nominal_potongan: deduction,
+            tanggal_bayar: tanggalDibayar || new Date().toISOString().split('T')[0],
+          })
+        } catch (repErr) {
+          console.warn('loan_repayments log note:', repErr)
+        }
+
         sisaPotongan -= deduction
       }
     }
@@ -543,30 +556,64 @@ export async function updatePaymentStatusAction(payrollId, statusPembayaran, tan
 
   // 3. Rollback pengembalian saldo kasbon jika diubah kembali ke 'belum_dibayar'
   else if (prevStatus === 'sudah_dibayar' && statusPembayaran === 'belum_dibayar') {
-    const { data: empLoans } = await db
-      .from('loans')
-      .select('*')
-      .eq('employee_id', currentPayroll.employee_id)
-      .order('created_at', { ascending: false })
+    // Cek apakah ada record di loan_repayments untuk payroll ini
+    let repayments = null
+    try {
+      const { data } = await db
+        .from('loan_repayments')
+        .select('*')
+        .eq('payroll_id', targetId)
+      repayments = data
+    } catch (e) {
+      // Tabel belum ada / fallback
+    }
 
-    if (empLoans && empLoans.length > 0 && currentPayroll.total_potongan_kasbon > 0) {
-      let sisaKembali = currentPayroll.total_potongan_kasbon
-      for (const loan of empLoans) {
-        if (sisaKembali <= 0) break
-        const maxRestore = loan.nominal_pinjaman - loan.sisa_pinjaman
-        const toRestore = Math.min(maxRestore, sisaKembali)
-        if (toRestore > 0) {
-          const newSisa = loan.sisa_pinjaman + toRestore
+    if (repayments && repayments.length > 0) {
+      for (const rep of repayments) {
+        const { data: loan } = await db.from('loans').select('sisa_pinjaman').eq('id', rep.loan_id).maybeSingle()
+        if (loan) {
           await db
             .from('loans')
             .update({
-              sisa_pinjaman: newSisa,
+              sisa_pinjaman: loan.sisa_pinjaman + rep.nominal_potongan,
               status: 'aktif',
               updated_at: new Date().toISOString(),
             })
-            .eq('id', loan.id)
+            .eq('id', rep.loan_id)
+        }
+      }
+      try {
+        await db.from('loan_repayments').delete().eq('payroll_id', targetId)
+      } catch (delErr) {
+        console.warn('delete loan_repayments note:', delErr)
+      }
+    } else {
+      // Fallback rollback jika loan_repayments kosong / belum digunakan sebelumnya
+      const { data: empLoans } = await db
+        .from('loans')
+        .select('*')
+        .eq('employee_id', currentPayroll.employee_id)
+        .order('created_at', { ascending: false })
 
-          sisaKembali -= toRestore
+      if (empLoans && empLoans.length > 0 && currentPayroll.total_potongan_kasbon > 0) {
+        let sisaKembali = currentPayroll.total_potongan_kasbon
+        for (const loan of empLoans) {
+          if (sisaKembali <= 0) break
+          const maxRestore = loan.nominal_pinjaman - loan.sisa_pinjaman
+          const toRestore = Math.min(maxRestore, sisaKembali)
+          if (toRestore > 0) {
+            const newSisa = loan.sisa_pinjaman + toRestore
+            await db
+              .from('loans')
+              .update({
+                sisa_pinjaman: newSisa,
+                status: 'aktif',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', loan.id)
+
+            sisaKembali -= toRestore
+          }
         }
       }
     }

@@ -212,6 +212,37 @@ export default async function PengaturanPage() {
             />
           </div>
 
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', marginTop: '0.5rem', margin: 0 }}>
+            5. Template Pesan WhatsApp Slip Gaji
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink)' }}>
+              Format Template WhatsApp (Opsional)
+            </label>
+            <textarea
+              name="whatsapp_template"
+              rows={6}
+              defaultValue={s.whatsapp_template || ''}
+              placeholder={`*SLIP GAJI KARYAWAN - TAICHAN & CHICKEN KA*\nPeriode: {periode}\nNama: {nama}\n----------------------------------------\n• Gaji Pokok: {gaji_pokok}\n• Potongan Telat: -{total_potongan_telat}\n• Potongan Off/Alpa: -{total_potongan_off}\n• Potongan Kasbon: -{total_potongan_kasbon}\n• Total Bonus: +{total_bonus_manual}\n----------------------------------------\n*TOTAL GAJI: {total_gaji}*\nStatus: {status_pembayaran}\n\nTerima kasih atas kerja kerasnya!`}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                borderRadius: 'var(--radius-input)',
+                background: 'var(--surface-muted)',
+                border: '1px solid var(--border)',
+                color: 'var(--ink)',
+                fontFamily: 'monospace',
+                fontSize: '0.82rem',
+                lineHeight: 1.5,
+                outline: 'none',
+              }}
+            />
+            <div style={{ fontSize: '0.75rem', color: 'var(--ink-muted)' }}>
+              * Kosongkan untuk memakai template bawaan sistem. Tag yang dapat digunakan: <code>{'{nama}'}</code>, <code>{'{periode}'}</code>, <code>{'{gaji_pokok}'}</code>, <code>{'{total_potongan_telat}'}</code>, <code>{'{total_potongan_off}'}</code>, <code>{'{total_potongan_kasbon}'}</code>, <code>{'{total_bonus_libur}'}</code>, <code>{'{total_bonus_manual}'}</code>, <code>{'{total_gaji}'}</code>, <code>{'{status_pembayaran}'}</code>.
+            </div>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
             <Button variant="primary" size="lg" type="submit" style={{ width: '100%', maxWidth: '220px' }}>
               Simpan Pengaturan

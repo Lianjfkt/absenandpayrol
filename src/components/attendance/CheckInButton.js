@@ -7,6 +7,7 @@ import { formatJam } from '@/lib/constants'
 
 export function CheckInButton({ todayAttendance, isHariLibur }) {
   const [loading, setLoading] = useState(false)
+  const [calibrating, setCalibrating] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [gpsAccuracy, setGpsAccuracy] = useState(null)
@@ -19,6 +20,35 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
 
   const isCheckedIn = !!todayAttendance?.jam_checkin
   const isCheckedOut = !!todayAttendance?.jam_checkout
+
+  // Kalibrasi ulang koordinat GPS dengan memaksa fresh fix (maximumAge: 0)
+  const handleCalibrateGPS = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setErrorMessage('GPS tidak didukung oleh browser ini.')
+      return
+    }
+    setCalibrating(true)
+    setErrorMessage('')
+    setStatusMessage('Mengambil sinyal satelit GPS terbaru...')
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const roundedAcc = Math.round(pos.coords.accuracy)
+        setGpsAccuracy(roundedAcc)
+        setCalibrating(false)
+        setStatusMessage(`GPS Terkalibrasi! Akurasi: ±${roundedAcc}m. Sinyal siap untuk presensi.`)
+      },
+      (err) => {
+        setCalibrating(false)
+        setErrorMessage(`Gagal kalibrasi GPS: ${err.message}`)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    )
+  }
 
   // Buka Kamera Depan
   const startCamera = async () => {
@@ -221,13 +251,37 @@ export function CheckInButton({ todayAttendance, isHariLibur }) {
         </div>
       )}
 
-      {/* Indikator Akurasi GPS */}
-      {gpsAccuracy !== null && (
-        <div style={{ fontSize: '0.8rem', color: gpsAccuracy <= 20 ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
-          <span>🛰️ Akurasi GPS: ±{gpsAccuracy}m</span>
-          <span>{gpsAccuracy <= 20 ? '(Sinyal Akurat)' : '(Sinyal Sedang)'}</span>
-        </div>
-      )}
+      {/* Indikator Akurasi GPS & Tombol Kalibrasi */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {gpsAccuracy !== null && (
+          <div style={{ fontSize: '0.8rem', color: gpsAccuracy <= 20 ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+            <span>🛰️ GPS: ±{gpsAccuracy}m</span>
+            <span>{gpsAccuracy <= 20 ? '(Akurat)' : '(Sedang)'}</span>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleCalibrateGPS}
+          disabled={calibrating || loading}
+          style={{
+            background: 'var(--surface-muted)',
+            border: '1px solid var(--border)',
+            color: 'var(--accent)',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: calibrating || loading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.25rem 0.65rem',
+            borderRadius: 'var(--radius-pill)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>{calibrating ? '⏳' : '🔄'}</span>
+          <span>{calibrating ? 'Mencari Satelit...' : 'Refresh GPS'}</span>
+        </button>
+      </div>
 
       {errorMessage && (
         <div

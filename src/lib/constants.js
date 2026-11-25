@@ -104,9 +104,26 @@ export function formatJam(dateStr) {
 }
 
 // === WhatsApp Slip Text Generator ===
-export function generateWhatsAppSlipText(namaKaryawan, slip) {
+export function generateWhatsAppSlipText(namaKaryawan, slip, customTemplate = null) {
   const joinDate = slip.profiles?.tanggal_mulai
   const tglGajian = joinDate ? new Date(joinDate).getDate() : null
+
+  if (customTemplate && customTemplate.trim()) {
+    let text = customTemplate
+      .replace(/{nama}/g, namaKaryawan || 'Karyawan')
+      .replace(/{periode}/g, `Bulan ${slip.periode_bulan}/${slip.periode_tahun}`)
+      .replace(/{jadwal_gajian}/g, tglGajian ? `Setiap tgl ${tglGajian}` : '-')
+      .replace(/{gaji_pokok}/g, formatRupiah(slip.gaji_pokok))
+      .replace(/{total_potongan_telat}/g, formatRupiah(slip.total_potongan_telat))
+      .replace(/{total_potongan_off}/g, formatRupiah(slip.total_potongan_off))
+      .replace(/{total_potongan_kasbon}/g, formatRupiah(slip.total_potongan_kasbon || 0))
+      .replace(/{total_bonus_libur}/g, formatRupiah(slip.total_bonus_libur))
+      .replace(/{total_bonus_manual}/g, formatRupiah(slip.total_bonus_manual))
+      .replace(/{total_gaji}/g, formatRupiah(slip.total_gaji))
+      .replace(/{status_pembayaran}/g, slip.status_pembayaran === 'sudah_dibayar' ? 'LUNAS / SUDAH DIBAYAR' : 'DRAFT / BELUM DIBAYAR')
+      .replace(/{tanggal_dibayar}/g, slip.tanggal_dibayar ? formatTanggal(slip.tanggal_dibayar) : '-')
+    return encodeURIComponent(text)
+  }
 
   const lines = [
     `*SLIP GAJI KARYAWAN - TAICHAN & CHICKEN KA*`,

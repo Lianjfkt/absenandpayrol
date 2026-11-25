@@ -151,6 +151,14 @@ export default async function PayrollPage({ searchParams }) {
                       -{formatRupiah(item.total_potongan_off)}
                     </div>
                   </div>
+                  {item.total_potongan_kasbon > 0 && (
+                    <div>
+                      <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Potongan Kasbon</div>
+                      <div style={{ fontWeight: 700, color: 'var(--danger)', marginTop: '0.2rem' }}>
+                        -{formatRupiah(item.total_potongan_kasbon)}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <div style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', fontWeight: 600 }}>Bonus Libur</div>
                     <div style={{ fontWeight: 700, color: item.total_bonus_libur > 0 ? 'var(--success)' : 'inherit', marginTop: '0.2rem' }}>
